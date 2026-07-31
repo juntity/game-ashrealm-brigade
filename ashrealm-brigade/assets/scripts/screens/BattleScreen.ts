@@ -1,6 +1,7 @@
 import { Button, Color, Graphics, Label, Layers, Node, UITransform } from 'cc';
 import { BattleModel, BattleProgress, BattleSnapshot } from '../modules/battle/BattleModel';
 import { OfflineReward } from '../modules/offline/OfflineRewardCalculator';
+import { EquipmentCollectionSave } from '../save/SaveData';
 import { DESIGN_HEIGHT, DESIGN_WIDTH, ScreenAdapter } from '../ui/ScreenAdapter';
 
 export class BattleScreen {
@@ -107,6 +108,11 @@ export class BattleScreen {
 
   public synchronizeGold(gold: number): void {
     this.model.synchronizeGold(gold);
+    this.render(this.model.getSnapshot());
+  }
+
+  public synchronizeEquipment(equipment: EquipmentCollectionSave): void {
+    this.model.synchronizeEquipment(equipment);
     this.render(this.model.getSnapshot());
   }
 

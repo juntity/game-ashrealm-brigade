@@ -179,6 +179,34 @@ describe('BattleModel', () => {
     expect(model.exportProgress().gold).toBe(17);
   });
 
+  it('recalculates dps immediately when equipped items change', () => {
+    const model = new BattleModel();
+    model.clickAttack();
+    const before = model.getSnapshot();
+
+    model.synchronizeEquipment({
+      inventory: [
+        {
+          instanceId: 'battle_weapon',
+          templateId: 'equipment_ash_blade',
+          rarity: 'rare',
+          level: 2,
+          enhanceLevel: 1,
+          starLevel: 0,
+          affixes: [{ affixId: 'affix_attack_percent', value: 0.1 }],
+          protected: false,
+        },
+      ],
+      equippedBySlot: { weapon: 'battle_weapon' },
+    });
+
+    const after = model.getSnapshot();
+    expect(after.totalDps).toBeGreaterThan(before.totalDps);
+    expect(after.heroDamage).toBeGreaterThan(before.heroDamage);
+    expect(after.monsterHp).toBe(before.monsterHp);
+    expect(model.exportProgress().equipment.equippedBySlot.weapon).toBe('battle_weapon');
+  });
+
   it('unlocks support heroes and aggregates deployed team DPS', () => {
     const model = new BattleModel({ stage: 10, highestStage: 10 });
 

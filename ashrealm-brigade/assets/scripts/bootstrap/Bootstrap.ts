@@ -25,6 +25,7 @@ import { EQUIPMENT_CONFIG } from '../config/EquipmentConfig';
 import { StageEquipmentDropper } from '../modules/equip/StageEquipmentDropper';
 import { TaskScreen } from '../screens/TaskScreen';
 import { TaskTracker } from '../modules/task/TaskTracker';
+import { EquipmentInventory } from '../modules/equip/EquipmentInventory';
 
 type GamePage = 'battle' | EquipmentPageMode | 'tasks';
 
@@ -236,6 +237,7 @@ export class Bootstrap extends Component {
           heroLevel: saveData.heroes[0]?.level ?? 1,
           heroes: saveData.heroes,
           equippedSkillIds: saveData.skills.equippedSkillIds,
+          equipment: saveData.equipment,
         },
         (progress) => this.saveProgress(progress),
       );
@@ -386,6 +388,7 @@ export class Bootstrap extends Component {
     taskTracker.record('equipment-equip', equippedChanges);
     this.saveData = this.saveService.save({ ...next, tasks: taskTracker.toSave() });
     this.battleScreen?.synchronizeGold(this.saveData.player.gold);
+    this.battleScreen?.synchronizeEquipment(this.saveData.equipment);
     return this.saveData;
   }
 
@@ -464,14 +467,15 @@ export class Bootstrap extends Component {
     const current = this.requireSaveData();
     const heroRoster = new HeroRoster(current.heroes);
     const passiveBonuses = heroRoster.getPassiveBonuses();
+    const equipmentStats = new EquipmentInventory(current.equipment).getEquippedStats();
     const reward = this.offlineRewardCalculator.calculate({
       lastActiveAt: current.lastActiveAt,
       now: this.platform.now(),
       goldPerMinute: this.economyCalculator.getOfflineGoldPerMinute(
         current.progress.stage,
         heroRoster.getTotalDps(),
-        passiveBonuses.goldMultiplier,
-        passiveBonuses.offlineMultiplier,
+        passiveBonuses.goldMultiplier * (1 + equipmentStats['gold-multiplier']),
+        passiveBonuses.offlineMultiplier * (1 + equipmentStats['offline-multiplier']),
       ),
       minimumOfflineSeconds: GAME_BALANCE.economy.offlineMinimumMinutes * 60,
       maxOfflineSeconds: GAME_BALANCE.economy.offlineMaxHours * 60 * 60,

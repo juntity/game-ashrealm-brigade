@@ -5,6 +5,9 @@ import { HeroRoster } from '../hero/HeroRoster';
 import { ActiveSkillBar, SkillCastStatus, SkillSlotSnapshot } from '../skill/ActiveSkillBar';
 import { DamageCalculator } from './DamageCalculator';
 import { createDefaultSaveData, HeroSave } from '../../save/SaveData';
+import { EquipmentCollectionSave } from '../../save/SaveData';
+import { EquipmentInventory, EquipmentStats } from '../equip/EquipmentInventory';
+import { EquipmentCombatCalculator } from '../equip/EquipmentCombatCalculator';
 
 export type BattleState = 'fighting' | 'failed';
 export type EnemyKind = 'normal' | 'boss';
@@ -16,6 +19,7 @@ export interface BattleProgress {
   readonly heroLevel: number;
   readonly heroes: readonly HeroSave[];
   readonly equippedSkillIds: readonly string[];
+  readonly equipment: EquipmentCollectionSave;
 }
 
 export interface BattleSnapshot {
@@ -44,6 +48,9 @@ export class BattleModel {
   private readonly heroCalculator = new HeroCalculator();
   private readonly heroRoster: HeroRoster;
   private readonly skillBar: ActiveSkillBar;
+  private readonly equipmentCombatCalculator = new EquipmentCombatCalculator();
+  private equipment: EquipmentCollectionSave;
+  private equipmentStats: EquipmentStats;
   private stage: number;
   private highestStage: number;
   private monsterMaxHp: number;
@@ -77,12 +84,16 @@ export class BattleModel {
     }
     this.heroRoster = new HeroRoster(initialHeroes);
     this.skillBar = new ActiveSkillBar(progress?.equippedSkillIds ?? []);
+    this.equipment = cloneEquipmentCollection(
+      progress?.equipment ?? createDefaultSaveData(0).equipment,
+    );
+    this.equipmentStats = new EquipmentInventory(this.equipment).getEquippedStats();
     this.heroRoster.synchronizeUnlocks(this.highestStage);
     this.heroLevel = this.heroRoster.getMainHero().level;
     this.heroDamage = 0;
     this.totalDps = 0;
-    this.refreshHeroStats();
     this.enemyKind = this.economyCalculator.isBossStage(this.stage) ? 'boss' : 'normal';
+    this.refreshHeroStats();
     this.monsterMaxHp = this.economyCalculator.getMonsterHp(this.stage, this.enemyKind === 'boss');
     this.monsterHp = this.monsterMaxHp;
     this.bossSecondsRemaining =
@@ -200,6 +211,7 @@ export class BattleModel {
       heroLevel: this.heroLevel,
       heroes: this.heroRoster.getHeroes(),
       equippedSkillIds: this.skillBar.getEquippedSkillIds(),
+      equipment: cloneEquipmentCollection(this.equipment),
     };
   }
 
@@ -207,7 +219,7 @@ export class BattleModel {
     if (!this.heroRoster.autoDeployStrongestSupports()) {
       return false;
     }
-    this.totalDps = this.heroRoster.getTotalDps();
+    this.refreshHeroStats();
     this.markProgressChanged();
     return true;
   }
@@ -241,6 +253,12 @@ export class BattleModel {
     this.gold = this.toNonNegativeInteger(gold, this.gold);
   }
 
+  public synchronizeEquipment(equipment: EquipmentCollectionSave): void {
+    this.equipment = cloneEquipmentCollection(equipment);
+    this.equipmentStats = new EquipmentInventory(this.equipment).getEquippedStats();
+    this.refreshHeroStats();
+  }
+
   public getProgressRevision(): number {
     return this.progressRevision;
   }
@@ -269,6 +287,7 @@ export class BattleModel {
 
   private spawnCurrentEnemy(): void {
     this.enemyKind = this.economyCalculator.isBossStage(this.stage) ? 'boss' : 'normal';
+    this.refreshHeroStats();
     this.monsterMaxHp = this.economyCalculator.getMonsterHp(this.stage, this.enemyKind === 'boss');
     this.monsterHp = this.monsterMaxHp;
     this.bossSecondsRemaining =
@@ -286,13 +305,23 @@ export class BattleModel {
   }
 
   private refreshHeroStats(): void {
-    this.heroDamage = this.heroRoster.getMainAttack();
-    this.totalDps = this.heroRoster.getTotalDps();
+    const result = this.equipmentCombatCalculator.calculate(
+      this.heroRoster.getMainAttack(),
+      this.heroRoster.getTotalDps(),
+      this.equipmentStats,
+      this.enemyKind === 'boss',
+    );
+    this.heroDamage = result.mainAttack;
+    this.totalDps = result.totalDps;
   }
 
   private getKillGold(isBoss: boolean): number {
     const baseGold = this.economyCalculator.getKillGold(this.stage, isBoss);
-    return Math.floor(baseGold * this.heroRoster.getPassiveBonuses().goldMultiplier);
+    return Math.floor(
+      baseGold *
+        this.heroRoster.getPassiveBonuses().goldMultiplier *
+        (1 + this.equipmentStats['gold-multiplier']),
+    );
   }
 
   private markProgressChanged(): void {
@@ -306,4 +335,14 @@ export class BattleModel {
   private toNonNegativeInteger(value: number | undefined, fallback: number): number {
     return Number.isInteger(value) && Number(value) >= 0 ? Number(value) : fallback;
   }
+}
+
+function cloneEquipmentCollection(equipment: EquipmentCollectionSave): EquipmentCollectionSave {
+  return {
+    inventory: equipment.inventory.map((item) => ({
+      ...item,
+      affixes: item.affixes.map((affix) => ({ ...affix })),
+    })),
+    equippedBySlot: { ...equipment.equippedBySlot },
+  };
 }
