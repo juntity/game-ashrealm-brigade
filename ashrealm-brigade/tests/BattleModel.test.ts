@@ -125,4 +125,13 @@ describe('BattleModel', () => {
     clickUntilStage(model, 2);
     expect(model.getProgressRevision()).toBe(1);
   });
+
+  it('grants only positive integer offline gold', () => {
+    const model = new BattleModel({ gold: 5 });
+
+    expect(model.grantGold(12)).toBe(true);
+    expect(model.exportProgress().gold).toBe(17);
+    expect(model.grantGold(-3)).toBe(false);
+    expect(model.exportProgress().gold).toBe(17);
+  });
 });

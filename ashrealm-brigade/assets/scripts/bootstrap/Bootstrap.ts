@@ -12,7 +12,8 @@ import {
 } from 'cc';
 import { BattleScreen } from '../screens/BattleScreen';
 import { BattleProgress } from '../modules/battle/BattleModel';
-import { WebPlatformAdapter } from '../platform/PlatformAdapter';
+import { OfflineRewardCalculator } from '../modules/offline/OfflineRewardCalculator';
+import { CocosPlatformAdapter } from '../platform/CocosPlatformAdapter';
 import { SaveData } from '../save/SaveData';
 import { SaveService } from '../save/SaveService';
 
@@ -24,12 +25,19 @@ const DESIGN_HEIGHT = 1334;
 @ccclass('Bootstrap')
 export class Bootstrap extends Component {
   private battleScreen: BattleScreen | null = null;
-  private readonly platform = new WebPlatformAdapter();
+  private readonly platform = new CocosPlatformAdapter();
   private readonly saveService = new SaveService(this.platform.storage, () => this.platform.now());
+  private readonly offlineRewardCalculator = new OfflineRewardCalculator();
   private saveData: SaveData | null = null;
+  private offlineGold = 0;
+  private removeHideListener: (() => void) | null = null;
+  private removeShowListener: (() => void) | null = null;
 
   protected start(): void {
     this.saveData = this.saveService.load();
+    this.offlineGold = this.applyOfflineReward();
+    this.removeHideListener = this.platform.onHide(() => this.onAppHide());
+    this.removeShowListener = this.platform.onShow(() => this.onAppShow());
     this.buildLaunchScreen();
   }
 
@@ -40,6 +48,14 @@ export class Bootstrap extends Component {
     this.createLabel('烬境旅团', 64, new Color(242, 207, 128, 255), new Vec3(0, 260, 0));
     this.createLabel('ASHREALM BRIGADE', 22, new Color(165, 174, 190, 255), new Vec3(0, 198, 0));
     this.createLabel('集结英雄，穿越烬境', 28, new Color(220, 223, 229, 255), new Vec3(0, 95, 0));
+    if (this.offlineGold > 0) {
+      this.createLabel(
+        `离线收益 +${this.offlineGold} 金币`,
+        24,
+        new Color(142, 201, 148, 255),
+        new Vec3(0, 20, 0),
+      );
+    }
     this.createStartButton();
     this.createLabel('开发版本 0.1.0', 20, new Color(122, 130, 145, 255), new Vec3(0, -570, 0));
   }
@@ -134,6 +150,10 @@ export class Bootstrap extends Component {
     buttonNode?.off(Button.EventType.CLICK, this.onStartGame, this);
     this.battleScreen?.destroy();
     this.battleScreen = null;
+    this.removeHideListener?.();
+    this.removeShowListener?.();
+    this.removeHideListener = null;
+    this.removeShowListener = null;
   }
 
   private saveProgress(progress: BattleProgress): void {
@@ -169,5 +189,42 @@ export class Bootstrap extends Component {
       throw new Error('SaveData has not been loaded.');
     }
     return this.saveData;
+  }
+
+  private onAppHide(): void {
+    if (this.saveData === null) {
+      return;
+    }
+    this.saveData = this.saveService.save(this.saveData);
+  }
+
+  private onAppShow(): void {
+    const gold = this.applyOfflineReward();
+    if (gold > 0) {
+      this.battleScreen?.grantOfflineGold(gold);
+    }
+  }
+
+  private applyOfflineReward(): number {
+    const current = this.requireSaveData();
+    const heroLevel = current.heroes[0]?.level ?? 1;
+    const reward = this.offlineRewardCalculator.calculate({
+      lastActiveAt: current.lastActiveAt,
+      now: this.platform.now(),
+      goldPerMinute: 6 + heroLevel * 4,
+    });
+
+    if (reward.gold === 0) {
+      return 0;
+    }
+
+    this.saveData = this.saveService.save({
+      ...current,
+      player: {
+        ...current.player,
+        gold: current.player.gold + reward.gold,
+      },
+    });
+    return reward.gold;
   }
 }

@@ -68,6 +68,15 @@ export class BattleScreen {
     this.node.destroy();
   }
 
+  public grantOfflineGold(amount: number): void {
+    if (!this.model.grantGold(amount)) {
+      return;
+    }
+
+    this.render(this.model.getSnapshot());
+    this.persistIfChanged();
+  }
+
   private createBackground(): void {
     const background = this.createNode('Background', WIDTH, HEIGHT);
     const graphics = background.addComponent(Graphics);

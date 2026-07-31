@@ -14,5 +14,6 @@
     "assets/scripts/platform/**/*.ts",
     "assets/scripts/save/**/*.ts",
     "tests/**/*.ts"
-  ]
+  ],
+  "exclude": ["assets/scripts/platform/CocosPlatformAdapter.ts"]
 }

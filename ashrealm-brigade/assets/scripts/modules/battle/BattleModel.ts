@@ -128,6 +128,17 @@ export class BattleModel {
     };
   }
 
+  public grantGold(amount: number): boolean {
+    const normalizedAmount = this.toNonNegativeInteger(amount, 0);
+    if (normalizedAmount === 0) {
+      return false;
+    }
+
+    this.gold += normalizedAmount;
+    this.markProgressChanged();
+    return true;
+  }
+
   public getProgressRevision(): number {
     return this.progressRevision;
   }

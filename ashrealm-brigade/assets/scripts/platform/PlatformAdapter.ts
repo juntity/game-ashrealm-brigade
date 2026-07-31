@@ -7,6 +7,8 @@ export interface KeyValueStorage {
 export interface PlatformAdapter {
   readonly storage: KeyValueStorage;
   now(): number;
+  onHide(callback: () => void): () => void;
+  onShow(callback: () => void): () => void;
 }
 
 export class WebPlatformAdapter implements PlatformAdapter {
@@ -14,5 +16,25 @@ export class WebPlatformAdapter implements PlatformAdapter {
 
   public now(): number {
     return Date.now();
+  }
+
+  public onHide(callback: () => void): () => void {
+    const listener = (): void => {
+      if (globalThis.document.visibilityState === 'hidden') {
+        callback();
+      }
+    };
+    globalThis.document.addEventListener('visibilitychange', listener);
+    return () => globalThis.document.removeEventListener('visibilitychange', listener);
+  }
+
+  public onShow(callback: () => void): () => void {
+    const listener = (): void => {
+      if (globalThis.document.visibilityState === 'visible') {
+        callback();
+      }
+    };
+    globalThis.document.addEventListener('visibilitychange', listener);
+    return () => globalThis.document.removeEventListener('visibilitychange', listener);
   }
 }
