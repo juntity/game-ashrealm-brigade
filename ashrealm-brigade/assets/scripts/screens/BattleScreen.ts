@@ -18,12 +18,14 @@ export class BattleScreen {
   private readonly heroLabel: Label;
   private readonly upgradeLabel: Label;
   private readonly pauseLabel: Label;
+  private readonly formationLabel: Label;
   private readonly statusLabel: Label;
   private readonly hpBar: Graphics;
   private readonly monsterButton: Node;
   private readonly upgradeButton: Node;
   private readonly retryButton: Node;
   private readonly pauseButton: Node;
+  private readonly formationButton: Node;
 
   public constructor(
     parent: Node,
@@ -51,6 +53,8 @@ export class BattleScreen {
     this.hpLabel = this.createLabel('HpLabel', 23, 0, 70);
 
     this.heroLabel = this.createLabel('HeroLabel', 27, 0, -245);
+    this.formationButton = this.createWideSmallButton('FormationButton', 250, -310);
+    this.formationLabel = this.createLabelNode(this.formationButton, '自动编队', 21);
     this.upgradeButton = this.createButton('UpgradeButton', 0, -400);
     this.upgradeLabel = this.createLabelNode(this.upgradeButton, '升级英雄', 29);
     this.retryButton = this.createButton('RetryButton', 0, -505);
@@ -62,6 +66,7 @@ export class BattleScreen {
     this.upgradeButton.on(Button.EventType.CLICK, this.onUpgradeClicked, this);
     this.retryButton.on(Button.EventType.CLICK, this.onRetryClicked, this);
     this.pauseButton.on(Button.EventType.CLICK, this.onPauseClicked, this);
+    this.formationButton.on(Button.EventType.CLICK, this.onFormationClicked, this);
     this.render(this.model.getSnapshot());
   }
 
@@ -76,6 +81,7 @@ export class BattleScreen {
     this.upgradeButton.off(Button.EventType.CLICK, this.onUpgradeClicked, this);
     this.retryButton.off(Button.EventType.CLICK, this.onRetryClicked, this);
     this.pauseButton.off(Button.EventType.CLICK, this.onPauseClicked, this);
+    this.formationButton.off(Button.EventType.CLICK, this.onFormationClicked, this);
     this.node.destroy();
   }
 
@@ -178,6 +184,22 @@ export class BattleScreen {
     return node;
   }
 
+  private createWideSmallButton(name: string, x: number, y: number): Node {
+    const node = this.createNode(name, 170, 80);
+    node.setPosition(x, y);
+
+    const graphics = node.addComponent(Graphics);
+    graphics.fillColor = new Color(50, 58, 72, 255);
+    graphics.roundRect(-85, -40, 170, 80, 10);
+    graphics.fill();
+
+    const button = node.addComponent(Button);
+    button.transition = Button.Transition.SCALE;
+    button.zoomScale = 0.96;
+    this.contentRoot.addChild(node);
+    return node;
+  }
+
   private createLabel(name: string, fontSize: number, x: number, y: number): Label {
     const node = this.createNode(name, 690, 64);
     node.setPosition(x, y);
@@ -240,7 +262,10 @@ export class BattleScreen {
     }
     this.goldLabel.string = `金币 ${snapshot.gold}`;
     this.hpLabel.string = `${snapshot.monsterHp} / ${snapshot.monsterMaxHp}`;
-    this.heroLabel.string = `英雄 Lv.${snapshot.heroLevel}  ·  每秒伤害 ${snapshot.heroDamage}`;
+    this.heroLabel.string =
+      `主角 Lv.${snapshot.heroLevel} · 队伍 DPS ${snapshot.totalDps.toFixed(1)}` +
+      ` · 支援 ${snapshot.deployedSupportCount}/3`;
+    this.formationLabel.string = `自动编队 ${snapshot.unlockedHeroCount}/8`;
     this.upgradeLabel.string = `升级英雄  ${snapshot.upgradeCost} 金币`;
     this.pauseLabel.string = snapshot.isPaused ? '继续' : '暂停';
     this.pauseButton.active = snapshot.state === 'fighting';
@@ -281,6 +306,12 @@ export class BattleScreen {
       this.model.pause();
     }
     this.render(this.model.getSnapshot());
+  }
+
+  private onFormationClicked(): void {
+    this.model.autoDeployStrongestSupports();
+    this.render(this.model.getSnapshot());
+    this.persistIfChanged();
   }
 
   private persistIfChanged(): void {

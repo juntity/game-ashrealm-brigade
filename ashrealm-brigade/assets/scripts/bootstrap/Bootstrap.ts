@@ -14,6 +14,7 @@ import { BattleScreen } from '../screens/BattleScreen';
 import { BattleProgress } from '../modules/battle/BattleModel';
 import { OfflineReward, OfflineRewardCalculator } from '../modules/offline/OfflineRewardCalculator';
 import { EconomyCalculator } from '../modules/economy/EconomyCalculator';
+import { HeroRoster } from '../modules/hero/HeroRoster';
 import { GAME_BALANCE } from '../config/GameBalanceConfig';
 import { CocosPlatformAdapter } from '../platform/CocosPlatformAdapter';
 import { SaveData } from '../save/SaveData';
@@ -203,8 +204,10 @@ export class Bootstrap extends Component {
       this.node,
       {
         stage: saveData.progress.stage,
+        highestStage: saveData.progress.highestStage,
         gold: saveData.player.gold,
         heroLevel: saveData.heroes[0]?.level ?? 1,
+        heroes: saveData.heroes,
       },
       (progress) => this.saveProgress(progress),
     );
@@ -259,12 +262,6 @@ export class Bootstrap extends Component {
 
   private saveProgress(progress: BattleProgress): void {
     const current = this.requireSaveData();
-    const mainHero = current.heroes[0] ?? {
-      heroId: 'hero_main',
-      level: 1,
-      isDeployed: true,
-    };
-
     this.saveData = this.saveService.save({
       ...current,
       player: {
@@ -274,14 +271,9 @@ export class Bootstrap extends Component {
       progress: {
         ...current.progress,
         stage: progress.stage,
+        highestStage: progress.highestStage,
       },
-      heroes: [
-        {
-          ...mainHero,
-          level: progress.heroLevel,
-        },
-        ...current.heroes.slice(1),
-      ],
+      heroes: [...progress.heroes],
     });
   }
 
@@ -316,13 +308,13 @@ export class Bootstrap extends Component {
 
   private applyOfflineReward(): OfflineReward {
     const current = this.requireSaveData();
-    const heroLevel = current.heroes[0]?.level ?? 1;
+    const heroRoster = new HeroRoster(current.heroes);
     const reward = this.offlineRewardCalculator.calculate({
       lastActiveAt: current.lastActiveAt,
       now: this.platform.now(),
       goldPerMinute: this.economyCalculator.getOfflineGoldPerMinute(
         current.progress.stage,
-        heroLevel,
+        heroRoster.getTotalDps(),
       ),
       minimumOfflineSeconds: GAME_BALANCE.economy.offlineMinimumMinutes * 60,
       maxOfflineSeconds: GAME_BALANCE.economy.offlineMaxHours * 60 * 60,

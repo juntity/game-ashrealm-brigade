@@ -1,9 +1,6 @@
 import { GAME_BALANCE, GameBalanceConfig } from '../../config/GameBalanceConfig';
-import { HeroCalculator } from '../hero/HeroCalculator';
 
 export class EconomyCalculator {
-  private readonly heroCalculator = new HeroCalculator();
-
   public constructor(private readonly config: Readonly<GameBalanceConfig> = GAME_BALANCE) {}
 
   public isBossStage(stage: number): boolean {
@@ -32,11 +29,11 @@ export class EconomyCalculator {
     );
   }
 
-  public getOfflineGoldPerMinute(stage: number, heroLevel: number): number {
+  public getOfflineGoldPerMinute(stage: number, totalDps: number): number {
     const referenceStage = this.isBossStage(stage) ? Math.max(1, stage - 1) : stage;
     const monsterHp = this.getMonsterHp(referenceStage, false);
-    const heroDamage = this.heroCalculator.getAttack(heroLevel);
-    const killSeconds = Math.max(this.config.economy.minimumKillSeconds, monsterHp / heroDamage);
+    const normalizedDps = Math.max(1, totalDps);
+    const killSeconds = Math.max(this.config.economy.minimumKillSeconds, monsterHp / normalizedDps);
     const activeGoldPerMinute = (this.getKillGold(referenceStage, false) * 60) / killSeconds;
 
     return Math.max(1, Math.floor(activeGoldPerMinute * this.config.economy.offlineEfficiency));

@@ -1,4 +1,6 @@
-export const SAVE_SCHEMA_VERSION = 1;
+import { HERO_CONFIG, MAIN_HERO_ID } from '../config/HeroConfig';
+
+export const SAVE_SCHEMA_VERSION = 2;
 
 export interface SaveData {
   readonly schemaVersion: number;
@@ -19,12 +21,14 @@ export interface PlayerSave {
 
 export interface ProgressSave {
   readonly stage: number;
+  readonly highestStage: number;
   readonly chapter: number;
 }
 
 export interface HeroSave {
   readonly heroId: string;
   readonly level: number;
+  readonly isUnlocked: boolean;
   readonly isDeployed: boolean;
 }
 
@@ -41,15 +45,15 @@ export function createDefaultSaveData(now: number): SaveData {
     },
     progress: {
       stage: 1,
+      highestStage: 1,
       chapter: 1,
     },
-    heroes: [
-      {
-        heroId: 'hero_main',
-        level: 1,
-        isDeployed: true,
-      },
-    ],
+    heroes: HERO_CONFIG.heroes.map((hero) => ({
+      heroId: hero.id,
+      level: 1,
+      isUnlocked: hero.id === MAIN_HERO_ID,
+      isDeployed: hero.id === MAIN_HERO_ID,
+    })),
     claims: {},
   };
 }

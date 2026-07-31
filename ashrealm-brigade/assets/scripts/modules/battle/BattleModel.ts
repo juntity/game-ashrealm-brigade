@@ -1,19 +1,24 @@
 import { GAME_BALANCE } from '../../config/GameBalanceConfig';
 import { EconomyCalculator } from '../economy/EconomyCalculator';
 import { HeroCalculator } from '../hero/HeroCalculator';
+import { HeroRoster } from '../hero/HeroRoster';
 import { DamageCalculator } from './DamageCalculator';
+import { createDefaultSaveData, HeroSave } from '../../save/SaveData';
 
 export type BattleState = 'fighting' | 'failed' | 'chapter-complete';
 export type EnemyKind = 'normal' | 'boss';
 
 export interface BattleProgress {
   readonly stage: number;
+  readonly highestStage: number;
   readonly gold: number;
   readonly heroLevel: number;
+  readonly heroes: readonly HeroSave[];
 }
 
 export interface BattleSnapshot {
   readonly stage: number;
+  readonly highestStage: number;
   readonly state: BattleState;
   readonly isPaused: boolean;
   readonly enemyKind: EnemyKind;
@@ -23,6 +28,9 @@ export interface BattleSnapshot {
   readonly gold: number;
   readonly heroLevel: number;
   readonly heroDamage: number;
+  readonly totalDps: number;
+  readonly unlockedHeroCount: number;
+  readonly deployedSupportCount: number;
   readonly upgradeCost: number;
 }
 
@@ -30,12 +38,15 @@ export class BattleModel {
   private readonly damageCalculator = new DamageCalculator();
   private readonly economyCalculator = new EconomyCalculator();
   private readonly heroCalculator = new HeroCalculator();
+  private readonly heroRoster: HeroRoster;
   private stage: number;
+  private highestStage: number;
   private monsterMaxHp: number;
   private monsterHp: number;
   private gold: number;
   private heroLevel: number;
   private heroDamage: number;
+  private totalDps: number;
   private autoAttackElapsed = 0;
   private state: BattleState = 'fighting';
   private isPaused = false;
@@ -45,9 +56,25 @@ export class BattleModel {
 
   public constructor(progress?: Partial<BattleProgress>) {
     this.stage = this.toPositiveInteger(progress?.stage, 1);
+    this.highestStage = Math.max(
+      this.stage,
+      this.toPositiveInteger(progress?.highestStage, this.stage),
+    );
     this.gold = this.toNonNegativeInteger(progress?.gold, 0);
-    this.heroLevel = this.toPositiveInteger(progress?.heroLevel, 1);
+    const initialHeroes = (progress?.heroes ?? createDefaultSaveData(0).heroes).map((hero) => ({
+      ...hero,
+    }));
+    if (progress?.heroes === undefined && progress?.heroLevel !== undefined) {
+      initialHeroes[0] = {
+        ...initialHeroes[0],
+        level: this.toPositiveInteger(progress.heroLevel, 1),
+      };
+    }
+    this.heroRoster = new HeroRoster(initialHeroes);
+    this.heroRoster.synchronizeUnlocks(this.highestStage);
+    this.heroLevel = this.heroRoster.getMainHero().level;
     this.heroDamage = this.heroCalculator.getAttack(this.heroLevel);
+    this.totalDps = this.heroRoster.getTotalDps();
     this.enemyKind = this.economyCalculator.isBossStage(this.stage) ? 'boss' : 'normal';
     this.monsterMaxHp = this.economyCalculator.getMonsterHp(this.stage, this.enemyKind === 'boss');
     this.monsterHp = this.monsterMaxHp;
@@ -72,7 +99,9 @@ export class BattleModel {
 
     while (this.autoAttackElapsed >= GAME_BALANCE.battle.autoAttackIntervalSeconds) {
       this.autoAttackElapsed -= GAME_BALANCE.battle.autoAttackIntervalSeconds;
-      this.damageMonster(this.heroDamage);
+      this.damageMonster(
+        Math.max(1, Math.floor(this.totalDps * GAME_BALANCE.battle.autoAttackIntervalSeconds)),
+      );
     }
   }
 
@@ -95,8 +124,10 @@ export class BattleModel {
     }
 
     this.gold -= cost;
-    this.heroLevel += 1;
+    this.heroRoster.levelUp('hero_main');
+    this.heroLevel = this.heroRoster.getMainHero().level;
     this.heroDamage = this.heroCalculator.getAttack(this.heroLevel);
+    this.totalDps = this.heroRoster.getTotalDps();
     this.markProgressChanged();
     return true;
   }
@@ -104,6 +135,7 @@ export class BattleModel {
   public getSnapshot(): BattleSnapshot {
     return {
       stage: this.stage,
+      highestStage: this.highestStage,
       state: this.state,
       isPaused: this.isPaused,
       enemyKind: this.enemyKind,
@@ -113,6 +145,9 @@ export class BattleModel {
       gold: this.gold,
       heroLevel: this.heroLevel,
       heroDamage: this.heroDamage,
+      totalDps: this.totalDps,
+      unlockedHeroCount: this.heroRoster.getUnlockedCount(),
+      deployedSupportCount: this.heroRoster.getDeployedSupportCount(),
       upgradeCost: this.getUpgradeCost(),
     };
   }
@@ -150,9 +185,20 @@ export class BattleModel {
   public exportProgress(): BattleProgress {
     return {
       stage: this.stage,
+      highestStage: this.highestStage,
       gold: this.gold,
       heroLevel: this.heroLevel,
+      heroes: this.heroRoster.getHeroes(),
     };
+  }
+
+  public autoDeployStrongestSupports(): boolean {
+    if (!this.heroRoster.autoDeployStrongestSupports()) {
+      return false;
+    }
+    this.totalDps = this.heroRoster.getTotalDps();
+    this.markProgressChanged();
+    return true;
   }
 
   public grantGold(amount: number): boolean {
@@ -179,6 +225,7 @@ export class BattleModel {
     if (this.enemyKind === 'boss') {
       this.gold += this.economyCalculator.getKillGold(this.stage, true);
       this.stage += 1;
+      this.reachStage(this.stage);
       this.state = 'chapter-complete';
       this.bossSecondsRemaining = null;
       this.markProgressChanged();
@@ -187,6 +234,7 @@ export class BattleModel {
 
     this.gold += this.economyCalculator.getKillGold(this.stage, false);
     this.stage += 1;
+    this.reachStage(this.stage);
     this.enemyKind = this.economyCalculator.isBossStage(this.stage) ? 'boss' : 'normal';
     this.monsterMaxHp = this.economyCalculator.getMonsterHp(this.stage, this.enemyKind === 'boss');
     this.monsterHp = this.monsterMaxHp;
@@ -197,6 +245,11 @@ export class BattleModel {
 
   private getUpgradeCost(): number {
     return this.heroCalculator.getUpgradeCost(this.heroLevel);
+  }
+
+  private reachStage(stage: number): void {
+    this.highestStage = Math.max(this.highestStage, stage);
+    this.heroRoster.synchronizeUnlocks(this.highestStage);
   }
 
   private markProgressChanged(): void {

@@ -1,3 +1,4 @@
+import { HERO_CONFIG, MAIN_HERO_ID } from '../config/HeroConfig';
 import { SAVE_SCHEMA_VERSION } from './SaveData';
 
 type SaveMigration = (data: Record<string, unknown>) => unknown;
@@ -19,6 +20,30 @@ const MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
         chapter: progress?.chapter ?? 1,
       },
       claims: asRecord(data.claims) ?? {},
+    };
+  },
+  1: (data) => {
+    const progress = asRecord(data.progress);
+    const currentStage = toPositiveInteger(progress?.stage, 1);
+    const legacyHeroes = Array.isArray(data.heroes) ? data.heroes : [];
+
+    return {
+      ...data,
+      schemaVersion: 2,
+      progress: {
+        ...progress,
+        highestStage: currentStage,
+      },
+      heroes: HERO_CONFIG.heroes.map((config) => {
+        const legacy = legacyHeroes.map(asRecord).find((hero) => hero?.heroId === config.id);
+        const isUnlocked = config.id === MAIN_HERO_ID || config.unlock.stage <= currentStage;
+        return {
+          heroId: config.id,
+          level: toPositiveInteger(legacy?.level, 1),
+          isUnlocked,
+          isDeployed: config.id === MAIN_HERO_ID,
+        };
+      }),
     };
   },
 };
@@ -54,4 +79,8 @@ export class SaveMigrator {
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : null;
+}
+
+function toPositiveInteger(value: unknown, fallback: number): number {
+  return Number.isInteger(value) && Number(value) > 0 ? Number(value) : fallback;
 }

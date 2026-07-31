@@ -148,8 +148,9 @@ describe('BattleModel', () => {
       monsterHp: 600,
       bossSecondsRemaining: 30,
     });
-    expect(model.exportProgress()).toEqual({
+    expect(model.exportProgress()).toMatchObject({
       stage: 10,
+      highestStage: 10,
       gold: 88,
       heroLevel: 4,
     });
@@ -172,5 +173,21 @@ describe('BattleModel', () => {
     expect(model.exportProgress().gold).toBe(17);
     expect(model.grantGold(-3)).toBe(false);
     expect(model.exportProgress().gold).toBe(17);
+  });
+
+  it('unlocks support heroes and aggregates deployed team DPS', () => {
+    const model = new BattleModel({ stage: 10, highestStage: 10 });
+
+    expect(model.getSnapshot()).toMatchObject({
+      unlockedHeroCount: 2,
+      deployedSupportCount: 0,
+      totalDps: 3,
+    });
+    expect(model.autoDeployStrongestSupports()).toBe(true);
+    expect(model.getSnapshot()).toMatchObject({
+      unlockedHeroCount: 2,
+      deployedSupportCount: 1,
+    });
+    expect(model.getSnapshot().totalDps).toBeGreaterThan(3);
   });
 });

@@ -8,11 +8,11 @@ describe('SaveService', () => {
     const service = new SaveService(new MemoryStorage(), () => 1_000);
 
     expect(service.load()).toMatchObject({
-      schemaVersion: 1,
+      schemaVersion: 2,
       revision: 0,
       createdAt: 1_000,
       player: { gold: 0, diamonds: 0 },
-      progress: { chapter: 1, stage: 1 },
+      progress: { chapter: 1, stage: 1, highestStage: 1 },
     });
   });
 
@@ -26,7 +26,7 @@ describe('SaveService', () => {
     const saved = service.save({
       ...initial,
       player: { ...initial.player, gold: 42 },
-      progress: { ...initial.progress, stage: 5 },
+      progress: { ...initial.progress, stage: 5, highestStage: 5 },
     });
 
     expect(saved).toMatchObject({
@@ -97,14 +97,51 @@ describe('SaveService', () => {
     const migrated = new SaveService(storage, () => 3_000).load();
 
     expect(migrated).toMatchObject({
-      schemaVersion: 1,
+      schemaVersion: 2,
       revision: 4,
       player: { gold: 88, diamonds: 0 },
-      progress: { stage: 9, chapter: 1 },
-      heroes: [{ level: 8 }],
+      progress: { stage: 9, highestStage: 9, chapter: 1 },
+      heroes: expect.arrayContaining([
+        expect.objectContaining({ heroId: 'hero_main', level: 8, isUnlocked: true }),
+      ]),
       claims: {},
     });
-    expect(JSON.parse(storage.getItem('ashrealm.save.v1') ?? '{}').schemaVersion).toBe(1);
+    expect(JSON.parse(storage.getItem('ashrealm.save.v1') ?? '{}').schemaVersion).toBe(2);
+  });
+
+  it('migrates version one to a complete version-two hero roster', () => {
+    const storage = new MemoryStorage();
+    storage.setItem(
+      'ashrealm.save.v1',
+      JSON.stringify({
+        schemaVersion: 1,
+        revision: 7,
+        createdAt: 1_000,
+        updatedAt: 2_000,
+        lastActiveAt: 2_000,
+        player: { gold: 123, diamonds: 0 },
+        progress: { stage: 11, chapter: 1 },
+        heroes: [{ heroId: 'hero_main', level: 8, isDeployed: true }],
+        claims: {},
+      }),
+    );
+
+    const migrated = new SaveService(storage, () => 3_000).load();
+
+    expect(migrated.schemaVersion).toBe(2);
+    expect(migrated.progress.highestStage).toBe(11);
+    expect(migrated.heroes).toHaveLength(8);
+    expect(migrated.heroes[0]).toMatchObject({
+      heroId: 'hero_main',
+      level: 8,
+      isUnlocked: true,
+      isDeployed: true,
+    });
+    expect(migrated.heroes[1]).toMatchObject({
+      heroId: 'hero_mage',
+      isUnlocked: true,
+      isDeployed: false,
+    });
   });
 
   it('uses a default save when every stored candidate is corrupted', () => {
@@ -127,7 +164,7 @@ describe('SaveService', () => {
 
     const invalid = {
       ...createDefaultSaveData(2_000),
-      progress: { chapter: 1, stage: 0 },
+      progress: { ...createDefaultSaveData(2_000).progress, stage: 0 },
     };
 
     expect(() => service.save(invalid)).toThrow('invalid SaveData');
@@ -142,7 +179,9 @@ describe('SaveService', () => {
     expect(() =>
       service.save({
         ...initial,
-        heroes: [{ heroId: 'hero_main', level: 0, isDeployed: true }],
+        heroes: initial.heroes.map((hero) =>
+          hero.heroId === 'hero_main' ? { ...hero, level: 0 } : hero,
+        ),
       }),
     ).toThrow('invalid SaveData');
 
@@ -150,6 +189,13 @@ describe('SaveService', () => {
       service.save({
         ...initial,
         claims: { daily_gold: 'yes' as unknown as boolean },
+      }),
+    ).toThrow('invalid SaveData');
+
+    expect(() =>
+      service.save({
+        ...initial,
+        heroes: [null, ...initial.heroes.slice(1)] as unknown as typeof initial.heroes,
       }),
     ).toThrow('invalid SaveData');
   });

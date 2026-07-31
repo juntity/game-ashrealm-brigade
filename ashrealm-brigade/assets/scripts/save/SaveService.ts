@@ -1,4 +1,5 @@
 import { KeyValueStorage } from '../platform/PlatformAdapter';
+import { HERO_CONFIG, MAIN_HERO_ID } from '../config/HeroConfig';
 import { createDefaultSaveData, SAVE_SCHEMA_VERSION, SaveData } from './SaveData';
 import { SaveMigrator } from './SaveMigrator';
 
@@ -181,6 +182,16 @@ export class SaveService {
     }
 
     const data = value as Partial<SaveData>;
+    const expectedHeroIds = new Set(HERO_CONFIG.heroes.map((hero) => hero.id));
+    const savedHeroIds = new Set(
+      Array.isArray(data.heroes)
+        ? data.heroes.flatMap((hero) =>
+            typeof hero === 'object' && hero !== null && typeof hero.heroId === 'string'
+              ? [hero.heroId]
+              : [],
+          )
+        : [],
+    );
     return (
       data.schemaVersion === SAVE_SCHEMA_VERSION &&
       this.isNonNegativeInteger(data.revision) &&
@@ -194,9 +205,13 @@ export class SaveService {
       typeof data.progress === 'object' &&
       data.progress !== null &&
       this.isPositiveInteger(data.progress.stage) &&
+      this.isPositiveInteger(data.progress.highestStage) &&
+      data.progress.highestStage >= data.progress.stage &&
       this.isPositiveInteger(data.progress.chapter) &&
       Array.isArray(data.heroes) &&
-      data.heroes.length > 0 &&
+      data.heroes.length === HERO_CONFIG.heroes.length &&
+      savedHeroIds.size === expectedHeroIds.size &&
+      [...expectedHeroIds].every((heroId) => savedHeroIds.has(heroId)) &&
       data.heroes.every(
         (hero) =>
           typeof hero === 'object' &&
@@ -204,8 +219,14 @@ export class SaveService {
           typeof hero.heroId === 'string' &&
           hero.heroId.length > 0 &&
           this.isPositiveInteger(hero.level) &&
+          typeof hero.isUnlocked === 'boolean' &&
           typeof hero.isDeployed === 'boolean',
       ) &&
+      data.heroes.every((hero) => !hero.isDeployed || hero.isUnlocked) &&
+      data.heroes.some(
+        (hero) => hero.heroId === MAIN_HERO_ID && hero.isUnlocked && hero.isDeployed,
+      ) &&
+      data.heroes.filter((hero) => hero.heroId !== MAIN_HERO_ID && hero.isDeployed).length <= 3 &&
       typeof data.claims === 'object' &&
       data.claims !== null &&
       !Array.isArray(data.claims) &&
