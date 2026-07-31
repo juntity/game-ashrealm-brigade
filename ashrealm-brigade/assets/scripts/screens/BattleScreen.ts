@@ -17,11 +17,13 @@ export class BattleScreen {
   private readonly hpLabel: Label;
   private readonly heroLabel: Label;
   private readonly upgradeLabel: Label;
+  private readonly pauseLabel: Label;
   private readonly statusLabel: Label;
   private readonly hpBar: Graphics;
   private readonly monsterButton: Node;
   private readonly upgradeButton: Node;
   private readonly retryButton: Node;
+  private readonly pauseButton: Node;
 
   public constructor(
     parent: Node,
@@ -36,6 +38,8 @@ export class BattleScreen {
 
     this.createBackground();
     this.stageLabel = this.createLabel('StageLabel', 30, 0, 565);
+    this.pauseButton = this.createSmallButton('PauseButton', 285, 570);
+    this.pauseLabel = this.createLabelNode(this.pauseButton, '暂停', 22);
     this.goldLabel = this.createLabel('GoldLabel', 28, 0, 510);
     this.offlineRewardLabel = this.createLabel('OfflineRewardLabel', 20, 0, 458);
     this.offlineRewardLabel.color = new Color(142, 201, 148, 255);
@@ -56,6 +60,7 @@ export class BattleScreen {
     this.monsterButton.on(Button.EventType.CLICK, this.onMonsterClicked, this);
     this.upgradeButton.on(Button.EventType.CLICK, this.onUpgradeClicked, this);
     this.retryButton.on(Button.EventType.CLICK, this.onRetryClicked, this);
+    this.pauseButton.on(Button.EventType.CLICK, this.onPauseClicked, this);
     this.render(this.model.getSnapshot());
   }
 
@@ -69,6 +74,7 @@ export class BattleScreen {
     this.monsterButton.off(Button.EventType.CLICK, this.onMonsterClicked, this);
     this.upgradeButton.off(Button.EventType.CLICK, this.onUpgradeClicked, this);
     this.retryButton.off(Button.EventType.CLICK, this.onRetryClicked, this);
+    this.pauseButton.off(Button.EventType.CLICK, this.onPauseClicked, this);
     this.node.destroy();
   }
 
@@ -78,6 +84,22 @@ export class BattleScreen {
       this.render(this.model.getSnapshot());
       this.persistIfChanged();
     }
+  }
+
+  public pause(): boolean {
+    const changed = this.model.pause();
+    if (changed) {
+      this.render(this.model.getSnapshot());
+    }
+    return changed;
+  }
+
+  public resume(): boolean {
+    const changed = this.model.resume();
+    if (changed) {
+      this.render(this.model.getSnapshot());
+    }
+    return changed;
   }
 
   private createBackground(): void {
@@ -124,6 +146,22 @@ export class BattleScreen {
     const graphics = node.addComponent(Graphics);
     graphics.fillColor = new Color(184, 133, 54, 255);
     graphics.roundRect(-195, -50, 390, 100, 16);
+    graphics.fill();
+
+    const button = node.addComponent(Button);
+    button.transition = Button.Transition.SCALE;
+    button.zoomScale = 0.96;
+    this.node.addChild(node);
+    return node;
+  }
+
+  private createSmallButton(name: string, x: number, y: number): Node {
+    const node = this.createNode(name, 120, 58);
+    node.setPosition(x, y);
+
+    const graphics = node.addComponent(Graphics);
+    graphics.fillColor = new Color(50, 58, 72, 255);
+    graphics.roundRect(-60, -29, 120, 58, 10);
     graphics.fill();
 
     const button = node.addComponent(Button);
@@ -180,7 +218,9 @@ export class BattleScreen {
 
   private render(snapshot: BattleSnapshot): void {
     this.stageLabel.string = `关卡 ${snapshot.stage}`;
-    if (snapshot.state === 'failed') {
+    if (snapshot.isPaused) {
+      this.statusLabel.string = '战斗已暂停';
+    } else if (snapshot.state === 'failed') {
       this.statusLabel.string = '挑战失败：Boss 已狂暴';
     } else if (snapshot.state === 'chapter-complete') {
       this.statusLabel.string = '首章灰盒完成！';
@@ -195,6 +235,8 @@ export class BattleScreen {
     this.hpLabel.string = `${snapshot.monsterHp} / ${snapshot.monsterMaxHp}`;
     this.heroLabel.string = `英雄 Lv.${snapshot.heroLevel}  ·  每秒伤害 ${snapshot.heroDamage}`;
     this.upgradeLabel.string = `升级英雄  ${snapshot.upgradeCost} 金币`;
+    this.pauseLabel.string = snapshot.isPaused ? '继续' : '暂停';
+    this.pauseButton.active = snapshot.state === 'fighting';
     this.retryButton.active = snapshot.state === 'failed';
 
     const ratio = snapshot.monsterHp / snapshot.monsterMaxHp;
@@ -221,6 +263,16 @@ export class BattleScreen {
 
   private onRetryClicked(): void {
     this.model.retryBoss();
+    this.render(this.model.getSnapshot());
+  }
+
+  private onPauseClicked(): void {
+    const snapshot = this.model.getSnapshot();
+    if (snapshot.isPaused) {
+      this.model.resume();
+    } else {
+      this.model.pause();
+    }
     this.render(this.model.getSnapshot());
   }
 

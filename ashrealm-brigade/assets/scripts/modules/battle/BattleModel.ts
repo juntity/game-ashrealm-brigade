@@ -14,6 +14,7 @@ export interface BattleProgress {
 export interface BattleSnapshot {
   readonly stage: number;
   readonly state: BattleState;
+  readonly isPaused: boolean;
   readonly enemyKind: EnemyKind;
   readonly monsterHp: number;
   readonly monsterMaxHp: number;
@@ -35,6 +36,7 @@ export class BattleModel {
   private heroDamage: number;
   private autoAttackElapsed = 0;
   private state: BattleState = 'fighting';
+  private isPaused = false;
   private enemyKind: EnemyKind;
   private bossSecondsRemaining: number | null;
   private progressRevision = 0;
@@ -52,7 +54,7 @@ export class BattleModel {
   }
 
   public tick(deltaTime: number): void {
-    if (this.state !== 'fighting') {
+    if (this.state !== 'fighting' || this.isPaused) {
       return;
     }
 
@@ -73,7 +75,7 @@ export class BattleModel {
   }
 
   public clickAttack(): void {
-    if (this.state !== 'fighting') {
+    if (this.state !== 'fighting' || this.isPaused) {
       return;
     }
 
@@ -101,6 +103,7 @@ export class BattleModel {
     return {
       stage: this.stage,
       state: this.state,
+      isPaused: this.isPaused,
       enemyKind: this.enemyKind,
       monsterHp: this.monsterHp,
       monsterMaxHp: this.monsterMaxHp,
@@ -121,6 +124,24 @@ export class BattleModel {
     this.monsterHp = this.monsterMaxHp;
     this.bossSecondsRemaining = GAME_BALANCE.battle.bossDurationSeconds;
     this.autoAttackElapsed = 0;
+    return true;
+  }
+
+  public pause(): boolean {
+    if (this.state !== 'fighting' || this.isPaused) {
+      return false;
+    }
+
+    this.isPaused = true;
+    return true;
+  }
+
+  public resume(): boolean {
+    if (!this.isPaused) {
+      return false;
+    }
+
+    this.isPaused = false;
     return true;
   }
 

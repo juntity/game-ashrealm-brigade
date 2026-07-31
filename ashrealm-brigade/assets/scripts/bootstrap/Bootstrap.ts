@@ -41,6 +41,7 @@ export class Bootstrap extends Component {
   private removeShowListener: (() => void) | null = null;
   private developerMessage = '';
   private clearConfirmationPending = false;
+  private battlePausedByLifecycle = false;
 
   protected start(): void {
     this.saveData = this.saveService.load();
@@ -279,6 +280,7 @@ export class Bootstrap extends Component {
     if (this.saveData === null) {
       return;
     }
+    this.battlePausedByLifecycle = this.battleScreen?.pause() ?? false;
     this.saveData = this.saveService.save(this.saveData);
   }
 
@@ -287,6 +289,10 @@ export class Bootstrap extends Component {
     this.offlineReward = reward;
     if (this.battleScreen !== null) {
       this.battleScreen.showOfflineReward(reward);
+      if (this.battlePausedByLifecycle) {
+        this.battleScreen.resume();
+      }
+      this.battlePausedByLifecycle = false;
       return;
     }
     this.buildLaunchScreen();

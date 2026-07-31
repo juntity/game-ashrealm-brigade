@@ -22,6 +22,27 @@ describe('BattleModel', () => {
     expect(model.getSnapshot().monsterHp).toBe(25);
   });
 
+  it('stops automatic and click attacks while paused, then resumes', () => {
+    const model = new BattleModel();
+
+    expect(model.pause()).toBe(true);
+    expect(model.pause()).toBe(false);
+    model.tick(10);
+    model.clickAttack();
+    expect(model.getSnapshot()).toMatchObject({
+      isPaused: true,
+      monsterHp: 30,
+    });
+
+    expect(model.resume()).toBe(true);
+    expect(model.resume()).toBe(false);
+    model.tick(1);
+    expect(model.getSnapshot()).toMatchObject({
+      isPaused: false,
+      monsterHp: 27,
+    });
+  });
+
   it('rewards a kill and advances the stage', () => {
     const model = new BattleModel();
     clickUntilStage(model, 2);
@@ -72,6 +93,24 @@ describe('BattleModel', () => {
     model.tick(10);
     model.clickAttack();
     expect(model.getSnapshot().monsterHp).toBe(failedSnapshot.monsterHp);
+  });
+
+  it('preserves the boss timer while paused', () => {
+    const model = new BattleModel({ stage: 10 });
+
+    model.tick(5);
+    expect(model.getSnapshot().bossSecondsRemaining).toBe(25);
+    model.pause();
+    model.tick(60);
+    expect(model.getSnapshot()).toMatchObject({
+      isPaused: true,
+      state: 'fighting',
+      bossSecondsRemaining: 25,
+    });
+
+    model.resume();
+    model.tick(1);
+    expect(model.getSnapshot().bossSecondsRemaining).toBe(24);
   });
 
   it('marks the chapter complete after defeating the boss', () => {
