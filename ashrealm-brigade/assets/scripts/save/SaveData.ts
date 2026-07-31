@@ -1,7 +1,8 @@
 import { HERO_CONFIG, MAIN_HERO_ID } from '../config/HeroConfig';
 import { SKILL_CONFIG } from '../config/SkillConfig';
+import { EquipmentRarity, EquipmentSlot } from '../config/EquipmentConfig';
 
-export const SAVE_SCHEMA_VERSION = 3;
+export const SAVE_SCHEMA_VERSION = 4;
 
 export interface SaveData {
   readonly schemaVersion: number;
@@ -13,6 +14,7 @@ export interface SaveData {
   readonly progress: ProgressSave;
   readonly heroes: HeroSave[];
   readonly skills: SkillSave;
+  readonly equipment: EquipmentCollectionSave;
   readonly claims: Record<string, boolean>;
 }
 
@@ -36,6 +38,26 @@ export interface HeroSave {
 
 export interface SkillSave {
   readonly equippedSkillIds: string[];
+}
+
+export interface EquipmentAffixSave {
+  readonly affixId: string;
+  readonly value: number;
+}
+
+export interface EquipmentSave {
+  readonly instanceId: string;
+  readonly templateId: string;
+  readonly rarity: EquipmentRarity;
+  readonly level: number;
+  readonly enhanceLevel: number;
+  readonly affixes: EquipmentAffixSave[];
+  readonly protected: boolean;
+}
+
+export interface EquipmentCollectionSave {
+  readonly inventory: EquipmentSave[];
+  readonly equippedBySlot: Partial<Record<EquipmentSlot, string>>;
 }
 
 export function createDefaultSaveData(now: number): SaveData {
@@ -62,6 +84,10 @@ export function createDefaultSaveData(now: number): SaveData {
     })),
     skills: {
       equippedSkillIds: SKILL_CONFIG.activeSkills.map((skill) => skill.id),
+    },
+    equipment: {
+      inventory: [],
+      equippedBySlot: {},
     },
     claims: {},
   };

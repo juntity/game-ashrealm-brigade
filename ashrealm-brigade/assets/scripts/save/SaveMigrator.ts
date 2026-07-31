@@ -54,6 +54,14 @@ const MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
       equippedSkillIds: SKILL_CONFIG.activeSkills.map((skill) => skill.id),
     },
   }),
+  3: (data) => ({
+    ...data,
+    schemaVersion: 4,
+    equipment: {
+      inventory: [],
+      equippedBySlot: {},
+    },
+  }),
 };
 
 export class SaveMigrator {

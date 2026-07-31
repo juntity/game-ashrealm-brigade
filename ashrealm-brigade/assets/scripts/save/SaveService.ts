@@ -1,6 +1,7 @@
 import { KeyValueStorage } from '../platform/PlatformAdapter';
 import { HERO_CONFIG, MAIN_HERO_ID } from '../config/HeroConfig';
 import { MAX_ACTIVE_SKILL_SLOTS, SKILL_CONFIG } from '../config/SkillConfig';
+import { EQUIPMENT_CONFIG, EquipmentSlot } from '../config/EquipmentConfig';
 import { createDefaultSaveData, SAVE_SCHEMA_VERSION, SaveData } from './SaveData';
 import { SaveMigrator } from './SaveMigrator';
 
@@ -194,6 +195,18 @@ export class SaveService {
         : [],
     );
     const validSkillIds = new Set(SKILL_CONFIG.activeSkills.map((skill) => skill.id));
+    const validTemplateIds = new Set(EQUIPMENT_CONFIG.templates.map((template) => template.id));
+    const validRarityIds = new Set(EQUIPMENT_CONFIG.rarities.map((rarity) => rarity.id));
+    const validAffixIds = new Set(EQUIPMENT_CONFIG.affixes.map((affix) => affix.id));
+    const equipmentIds = new Set(
+      Array.isArray(data.equipment?.inventory)
+        ? data.equipment.inventory.flatMap((item) =>
+            typeof item === 'object' && item !== null && typeof item.instanceId === 'string'
+              ? [item.instanceId]
+              : [],
+          )
+        : [],
+    );
     return (
       data.schemaVersion === SAVE_SCHEMA_VERSION &&
       this.isNonNegativeInteger(data.revision) &&
@@ -237,6 +250,38 @@ export class SaveService {
       data.skills.equippedSkillIds.every(
         (skillId) => typeof skillId === 'string' && validSkillIds.has(skillId),
       ) &&
+      typeof data.equipment === 'object' &&
+      data.equipment !== null &&
+      Array.isArray(data.equipment.inventory) &&
+      equipmentIds.size === data.equipment.inventory.length &&
+      data.equipment.inventory.every(
+        (item) =>
+          typeof item === 'object' &&
+          item !== null &&
+          typeof item.instanceId === 'string' &&
+          item.instanceId.length > 0 &&
+          typeof item.templateId === 'string' &&
+          validTemplateIds.has(item.templateId) &&
+          validRarityIds.has(item.rarity) &&
+          this.isPositiveInteger(item.level) &&
+          this.isNonNegativeInteger(item.enhanceLevel) &&
+          typeof item.protected === 'boolean' &&
+          Array.isArray(item.affixes) &&
+          new Set(item.affixes.map((affix) => affix.affixId)).size === item.affixes.length &&
+          item.affixes.every(
+            (affix) =>
+              typeof affix === 'object' &&
+              affix !== null &&
+              typeof affix.affixId === 'string' &&
+              validAffixIds.has(affix.affixId) &&
+              this.isFiniteNumber(affix.value) &&
+              affix.value > 0,
+          ),
+      ) &&
+      typeof data.equipment.equippedBySlot === 'object' &&
+      data.equipment.equippedBySlot !== null &&
+      !Array.isArray(data.equipment.equippedBySlot) &&
+      this.hasValidEquippedItems(data.equipment.equippedBySlot, data.equipment.inventory) &&
       typeof data.claims === 'object' &&
       data.claims !== null &&
       !Array.isArray(data.claims) &&
@@ -254,6 +299,24 @@ export class SaveService {
 
   private isPositiveInteger(value: unknown): value is number {
     return Number.isInteger(value) && Number(value) > 0;
+  }
+
+  private hasValidEquippedItems(
+    equippedBySlot: Partial<Record<EquipmentSlot, string>>,
+    inventory: SaveData['equipment']['inventory'],
+  ): boolean {
+    const validSlots = new Set(EQUIPMENT_CONFIG.templates.map((template) => template.slot));
+    const equippedIds = Object.values(equippedBySlot);
+    return (
+      Object.entries(equippedBySlot).every(([slot, instanceId]) => {
+        if (!validSlots.has(slot as EquipmentSlot) || typeof instanceId !== 'string') {
+          return false;
+        }
+        const item = inventory.find((entry) => entry.instanceId === instanceId);
+        const template = EQUIPMENT_CONFIG.templates.find((entry) => entry.id === item?.templateId);
+        return item !== undefined && template?.slot === slot;
+      }) && new Set(equippedIds).size === equippedIds.length
+    );
   }
 
   private clone(data: SaveData): SaveData {
