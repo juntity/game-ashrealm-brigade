@@ -1,12 +1,15 @@
 import { KeyValueStorage } from '../platform/PlatformAdapter';
 import { createDefaultSaveData, SAVE_SCHEMA_VERSION, SaveData } from './SaveData';
+import { SaveMigrator } from './SaveMigrator';
 
 const SAVE_KEY = 'ashrealm.save.v1';
 const TEMP_KEY = 'ashrealm.save.v1.tmp';
 const BACKUP_KEY = 'ashrealm.save.v1.backup';
+const CORRUPT_KEY = 'ashrealm.save.corrupt.latest';
 
 export class SaveService {
   private current: SaveData;
+  private readonly migrator = new SaveMigrator();
 
   public constructor(
     private readonly storage: KeyValueStorage,
@@ -20,8 +23,21 @@ export class SaveService {
     if (main !== null) {
       this.current = main;
       this.storage.removeItem(TEMP_KEY);
+      this.persistMigratedData(SAVE_KEY, main);
       return this.clone(main);
     }
+
+    this.archiveIfCorrupted(SAVE_KEY);
+
+    const temporary = this.readValid(TEMP_KEY);
+    if (temporary !== null) {
+      this.current = temporary;
+      this.storage.setItem(SAVE_KEY, JSON.stringify(temporary));
+      this.storage.removeItem(TEMP_KEY);
+      return this.clone(temporary);
+    }
+
+    this.archiveIfCorrupted(TEMP_KEY);
 
     const backup = this.readValid(BACKUP_KEY);
     if (backup !== null) {
@@ -31,6 +47,7 @@ export class SaveService {
       return this.clone(backup);
     }
 
+    this.archiveIfCorrupted(BACKUP_KEY);
     this.current = createDefaultSaveData(this.now());
     this.storage.removeItem(TEMP_KEY);
     return this.clone(this.current);
@@ -81,10 +98,43 @@ export class SaveService {
 
     try {
       const parsed: unknown = JSON.parse(serialized);
-      return this.isValid(parsed) ? parsed : null;
+      const migrated = this.migrator.migrate(parsed);
+      return this.isValid(migrated) ? migrated : null;
     } catch {
       return null;
     }
+  }
+
+  private persistMigratedData(key: string, data: SaveData): void {
+    const serialized = this.storage.getItem(key);
+    if (serialized === null) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(serialized) as { schemaVersion?: unknown };
+      if (parsed.schemaVersion !== SAVE_SCHEMA_VERSION) {
+        this.storage.setItem(key, JSON.stringify(data));
+      }
+    } catch {
+      // Invalid JSON is handled by the recovery path.
+    }
+  }
+
+  private archiveIfCorrupted(key: string): void {
+    const raw = this.storage.getItem(key);
+    if (raw === null || this.readValid(key) !== null) {
+      return;
+    }
+
+    this.storage.setItem(
+      CORRUPT_KEY,
+      JSON.stringify({
+        capturedAt: this.now(),
+        sourceKey: key,
+        raw,
+      }),
+    );
   }
 
   private isValid(value: unknown): value is SaveData {
@@ -109,8 +159,19 @@ export class SaveService {
       this.isPositiveInteger(data.progress.chapter) &&
       Array.isArray(data.heroes) &&
       data.heroes.length > 0 &&
+      data.heroes.every(
+        (hero) =>
+          typeof hero === 'object' &&
+          hero !== null &&
+          typeof hero.heroId === 'string' &&
+          hero.heroId.length > 0 &&
+          this.isPositiveInteger(hero.level) &&
+          typeof hero.isDeployed === 'boolean',
+      ) &&
       typeof data.claims === 'object' &&
-      data.claims !== null
+      data.claims !== null &&
+      !Array.isArray(data.claims) &&
+      Object.values(data.claims).every((claimed) => typeof claimed === 'boolean')
     );
   }
 
