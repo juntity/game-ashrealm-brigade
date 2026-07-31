@@ -1,3 +1,5 @@
+import { GAME_BALANCE } from '../../config/GameBalanceConfig';
+import { EconomyCalculator } from '../economy/EconomyCalculator';
 import { DamageCalculator } from './DamageCalculator';
 
 export type BattleState = 'fighting' | 'failed' | 'chapter-complete';
@@ -24,6 +26,7 @@ export interface BattleSnapshot {
 
 export class BattleModel {
   private readonly damageCalculator = new DamageCalculator();
+  private readonly economyCalculator = new EconomyCalculator();
   private stage: number;
   private monsterMaxHp: number;
   private monsterHp: number;
@@ -40,11 +43,12 @@ export class BattleModel {
     this.stage = this.toPositiveInteger(progress?.stage, 1);
     this.gold = this.toNonNegativeInteger(progress?.gold, 0);
     this.heroLevel = this.toPositiveInteger(progress?.heroLevel, 1);
-    this.heroDamage = this.getHeroDamage(this.heroLevel);
-    this.enemyKind = this.stage % 10 === 0 ? 'boss' : 'normal';
-    this.monsterMaxHp = this.getMonsterMaxHp(this.stage, this.enemyKind);
+    this.heroDamage = this.economyCalculator.getHeroDamage(this.heroLevel);
+    this.enemyKind = this.economyCalculator.isBossStage(this.stage) ? 'boss' : 'normal';
+    this.monsterMaxHp = this.economyCalculator.getMonsterHp(this.stage, this.enemyKind === 'boss');
     this.monsterHp = this.monsterMaxHp;
-    this.bossSecondsRemaining = this.enemyKind === 'boss' ? 30 : null;
+    this.bossSecondsRemaining =
+      this.enemyKind === 'boss' ? GAME_BALANCE.battle.bossDurationSeconds : null;
   }
 
   public tick(deltaTime: number): void {
@@ -62,8 +66,8 @@ export class BattleModel {
 
     this.autoAttackElapsed += deltaTime;
 
-    while (this.autoAttackElapsed >= 1) {
-      this.autoAttackElapsed -= 1;
+    while (this.autoAttackElapsed >= GAME_BALANCE.battle.autoAttackIntervalSeconds) {
+      this.autoAttackElapsed -= GAME_BALANCE.battle.autoAttackIntervalSeconds;
       this.damageMonster(this.heroDamage);
     }
   }
@@ -75,7 +79,7 @@ export class BattleModel {
 
     const result = this.damageCalculator.calculate({
       attack: this.heroDamage,
-      multiplier: 0.75,
+      multiplier: GAME_BALANCE.battle.clickDamageMultiplier,
     });
     this.damageMonster(result.amount);
   }
@@ -88,7 +92,7 @@ export class BattleModel {
 
     this.gold -= cost;
     this.heroLevel += 1;
-    this.heroDamage = this.getHeroDamage(this.heroLevel);
+    this.heroDamage = this.economyCalculator.getHeroDamage(this.heroLevel);
     this.markProgressChanged();
     return true;
   }
@@ -115,7 +119,7 @@ export class BattleModel {
 
     this.state = 'fighting';
     this.monsterHp = this.monsterMaxHp;
-    this.bossSecondsRemaining = 30;
+    this.bossSecondsRemaining = GAME_BALANCE.battle.bossDurationSeconds;
     this.autoAttackElapsed = 0;
     return true;
   }
@@ -150,7 +154,7 @@ export class BattleModel {
     }
 
     if (this.enemyKind === 'boss') {
-      this.gold += 100;
+      this.gold += this.economyCalculator.getKillGold(this.stage, true);
       this.stage += 1;
       this.state = 'chapter-complete';
       this.bossSecondsRemaining = null;
@@ -158,25 +162,18 @@ export class BattleModel {
       return;
     }
 
-    this.gold += 5 + Math.floor(this.stage * 1.5);
+    this.gold += this.economyCalculator.getKillGold(this.stage, false);
     this.stage += 1;
-    this.enemyKind = this.stage % 10 === 0 ? 'boss' : 'normal';
-    this.monsterMaxHp = this.getMonsterMaxHp(this.stage, this.enemyKind);
+    this.enemyKind = this.economyCalculator.isBossStage(this.stage) ? 'boss' : 'normal';
+    this.monsterMaxHp = this.economyCalculator.getMonsterHp(this.stage, this.enemyKind === 'boss');
     this.monsterHp = this.monsterMaxHp;
-    this.bossSecondsRemaining = this.enemyKind === 'boss' ? 30 : null;
+    this.bossSecondsRemaining =
+      this.enemyKind === 'boss' ? GAME_BALANCE.battle.bossDurationSeconds : null;
     this.markProgressChanged();
   }
 
   private getUpgradeCost(): number {
-    return Math.floor(10 * Math.pow(1.35, this.heroLevel - 1));
-  }
-
-  private getHeroDamage(level: number): number {
-    return 3 + (level - 1) * 2;
-  }
-
-  private getMonsterMaxHp(stage: number, enemyKind: EnemyKind): number {
-    return enemyKind === 'boss' ? 600 : Math.floor(30 * Math.pow(1.16, stage - 1));
+    return this.economyCalculator.getUpgradeCost(this.heroLevel);
   }
 
   private markProgressChanged(): void {

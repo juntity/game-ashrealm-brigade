@@ -24,7 +24,7 @@
 
 文件统一使用 UTF-8 编码、Unix 换行符，并在末尾保留换行。Markdown 文档应采用简洁标题、短段落，以及标明语言的围栏代码块。文档文件名使用小写短横线格式，例如 `combat-rules.md`。
 
-TypeScript 使用 2 空格缩进。类、组件和类型采用 `PascalCase`，变量与函数采用 `camelCase`，常量采用 `UPPER_SNAKE_CASE`。模块名与 GDD 保持一致，例如 `BattleService`、`HeroConfig`。配置字段应稳定且含义明确；不要把平衡数值硬编码在组件中。遵循项目已配置的格式化与检查工具，不要引入相互冲突的工具。
+TypeScript 使用 2 空格缩进。类、组件和类型采用 `PascalCase`，变量与函数采用 `camelCase`，常量采用 `UPPER_SNAKE_CASE`。模块名与 GDD 保持一致，例如 `BattleService`、`HeroConfig`。配置字段应稳定且含义明确。战斗、英雄成长和经济参数统一放在 `ashrealm-brigade/assets/scripts/config/GameBalanceConfig.ts`，公式放在对应模块的纯逻辑计算器中；组件只负责交互与展示，不得重复硬编码平衡数值。遵循项目已配置的格式化与检查工具，不要引入相互冲突的工具。
 
 ## 测试指南
 

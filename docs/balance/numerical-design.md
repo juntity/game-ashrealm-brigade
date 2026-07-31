@@ -1,6 +1,6 @@
 # 数值策划文档
 
-> 版本：V0.1｜状态：公式草案｜所有参数须经模拟与试玩校准
+> 版本：V0.2｜状态：MVP 首轮参数｜所有参数须经模拟与试玩校准
 
 ## 1. 设计目标
 
@@ -8,17 +8,17 @@
 
 ## 2. 统一计算口径
 
-以下公式是配置生成基线，不是最终平衡值：
+当前 MVP 参数集中定义在
+`ashrealm-brigade/assets/scripts/config/GameBalanceConfig.ts`。业务代码不得重复声明平衡常量。
 
 ```text
-英雄攻击(L) = baseAttack × attackGrowth^(L - 1)
-升级费用(L→L+1) = floor(baseCost × costGrowth^(L - 1))
-怪物生命(S) = baseMonsterHp × stageHpGrowth^(S - 1)
-金币掉落(S) = floor(baseGold × stageGoldGrowth^(S - 1))
-实际伤害 = 攻击 × 技能倍率 × 增伤乘区 × 暴击倍率 × 防御修正
+英雄伤害(L) = baseDamage + (L - 1) × damagePerLevel
+升级费用(L→L+1) = floor(upgradeBaseCost × upgradeCostGrowth^(L - 1))
+普通怪生命(S) = floor(monsterBaseHp × monsterHpGrowth^(S - 1))
+普通怪金币(S) = floor(monsterBaseGold + S × monsterStageGoldFactor)
 ```
 
-建议初始模拟区间：`attackGrowth=1.07～1.10`、`costGrowth=1.10～1.14`、`stageHpGrowth=1.08～1.12`。正式值必须通过脚本输出 1～100 关耗时和资源曲线后确定。
+当前值仅服务于前 10 关灰盒。每次修改配置后必须运行单元测试，并在 Creator 中验证战斗节奏。
 
 ## 3. 战斗参数
 
@@ -60,7 +60,17 @@ Boss 战力门槛以“不升级时失败、完成 1～3 次关键升级后可�
 
 金币是主成长资源，来源为战斗和离线，消耗为英雄、技能与装备成长。钻石在 MVP 中是否投放待评审；未确认前不得用于阻断主线。每个来源和消耗项配置 `sourceId` / `sinkId`，便于平衡审计。
 
-离线金币基于玩家离线前的可验证每分钟收益计算，最多 12 小时。装备离线掉落应设数量上限，背包满时转为待领取，不得静默丢失。
+离线金币按当前英雄与关卡估算，不直接使用固定金币速率：
+
+```text
+主动每分钟金币 = 关卡金币 × 60 ÷ max(最低击杀秒数, 怪物生命 ÷ 英雄每秒伤害)
+离线每分钟金币 = floor(主动每分钟金币 × 离线效率)
+离线金币 = 离线分钟数 × 离线每分钟金币
+```
+
+首轮配置的离线效率为 35%，累计时间上限为 12 小时。Boss 关使用上一普通关估算，避免 Boss 固定生命和奖励导致离线收益突增。以 1 关、1 级英雄为例：主动收益约 36 金币/分钟，离线收益为 12 金币/分钟，12 小时上限为 8640 金币。
+
+装备离线掉落应另设数量上限；背包满时转为待领取，不得静默丢失。
 
 ## 8. 数值验收
 

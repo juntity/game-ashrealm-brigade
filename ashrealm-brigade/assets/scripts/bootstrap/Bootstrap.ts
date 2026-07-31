@@ -13,6 +13,8 @@ import {
 import { BattleScreen } from '../screens/BattleScreen';
 import { BattleProgress } from '../modules/battle/BattleModel';
 import { OfflineRewardCalculator } from '../modules/offline/OfflineRewardCalculator';
+import { EconomyCalculator } from '../modules/economy/EconomyCalculator';
+import { GAME_BALANCE } from '../config/GameBalanceConfig';
 import { CocosPlatformAdapter } from '../platform/CocosPlatformAdapter';
 import { SaveData } from '../save/SaveData';
 import { SaveService } from '../save/SaveService';
@@ -28,6 +30,7 @@ export class Bootstrap extends Component {
   private readonly platform = new CocosPlatformAdapter();
   private readonly saveService = new SaveService(this.platform.storage, () => this.platform.now());
   private readonly offlineRewardCalculator = new OfflineRewardCalculator();
+  private readonly economyCalculator = new EconomyCalculator();
   private saveData: SaveData | null = null;
   private offlineGold = 0;
   private removeHideListener: (() => void) | null = null;
@@ -211,7 +214,11 @@ export class Bootstrap extends Component {
     const reward = this.offlineRewardCalculator.calculate({
       lastActiveAt: current.lastActiveAt,
       now: this.platform.now(),
-      goldPerMinute: 6 + heroLevel * 4,
+      goldPerMinute: this.economyCalculator.getOfflineGoldPerMinute(
+        current.progress.stage,
+        heroLevel,
+      ),
+      maxOfflineSeconds: GAME_BALANCE.economy.offlineMaxHours * 60 * 60,
     });
 
     if (reward.gold === 0) {
