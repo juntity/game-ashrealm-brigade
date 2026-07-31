@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { OfflineRewardCalculator } from '../assets/scripts/modules/offline/OfflineRewardCalculator';
 
 describe('OfflineRewardCalculator', () => {
-  it('calculates proportional gold from elapsed seconds', () => {
+  it('calculates gold from complete offline minutes', () => {
     const calculator = new OfflineRewardCalculator();
 
     expect(
@@ -15,6 +15,38 @@ describe('OfflineRewardCalculator', () => {
       elapsedSeconds: 60,
       rewardedSeconds: 60,
       gold: 10,
+    });
+  });
+
+  it('grants nothing before the minimum offline duration', () => {
+    const calculator = new OfflineRewardCalculator();
+
+    expect(
+      calculator.calculate({
+        lastActiveAt: 1_000,
+        now: 60_999,
+        goldPerMinute: 25,
+      }),
+    ).toEqual({
+      elapsedSeconds: 59,
+      rewardedSeconds: 0,
+      gold: 0,
+    });
+  });
+
+  it('ignores incomplete minutes after reaching the minimum duration', () => {
+    const calculator = new OfflineRewardCalculator();
+
+    expect(
+      calculator.calculate({
+        lastActiveAt: 1_000,
+        now: 120_999,
+        goldPerMinute: 25,
+      }),
+    ).toEqual({
+      elapsedSeconds: 119,
+      rewardedSeconds: 60,
+      gold: 25,
     });
   });
 

@@ -1,5 +1,6 @@
 import { Button, Color, Graphics, Label, Layers, Node, UITransform } from 'cc';
 import { BattleModel, BattleProgress, BattleSnapshot } from '../modules/battle/BattleModel';
+import { OfflineReward } from '../modules/offline/OfflineRewardCalculator';
 
 const WIDTH = 750;
 const HEIGHT = 1334;
@@ -12,6 +13,7 @@ export class BattleScreen {
   private lastPersistedRevision = 0;
   private readonly stageLabel: Label;
   private readonly goldLabel: Label;
+  private readonly offlineRewardLabel: Label;
   private readonly hpLabel: Label;
   private readonly heroLabel: Label;
   private readonly upgradeLabel: Label;
@@ -35,8 +37,10 @@ export class BattleScreen {
     this.createBackground();
     this.stageLabel = this.createLabel('StageLabel', 30, 0, 565);
     this.goldLabel = this.createLabel('GoldLabel', 28, 0, 510);
+    this.offlineRewardLabel = this.createLabel('OfflineRewardLabel', 20, 0, 458);
+    this.offlineRewardLabel.color = new Color(142, 201, 148, 255);
 
-    this.statusLabel = this.createLabel('EnemyTitle', 28, 0, 430);
+    this.statusLabel = this.createLabel('EnemyTitle', 28, 0, 398);
     this.monsterButton = this.createMonster();
     this.hpBar = this.createHpBar();
     this.hpLabel = this.createLabel('HpLabel', 23, 0, 70);
@@ -68,13 +72,12 @@ export class BattleScreen {
     this.node.destroy();
   }
 
-  public grantOfflineGold(amount: number): void {
-    if (!this.model.grantGold(amount)) {
-      return;
+  public showOfflineReward(reward: OfflineReward): void {
+    this.offlineRewardLabel.string = this.formatOfflineReward(reward);
+    if (reward.gold > 0 && this.model.grantGold(reward.gold)) {
+      this.render(this.model.getSnapshot());
+      this.persistIfChanged();
     }
-
-    this.render(this.model.getSnapshot());
-    this.persistIfChanged();
   }
 
   private createBackground(): void {
@@ -161,6 +164,18 @@ export class BattleScreen {
     node.layer = Layers.Enum.UI_2D;
     node.addComponent(UITransform).setContentSize(width, height);
     return node;
+  }
+
+  private formatOfflineReward(reward: OfflineReward): string {
+    if (reward.elapsedSeconds < 60) {
+      return `离线 ${reward.elapsedSeconds} 秒 · 未满 1 分钟，暂无收益`;
+    }
+
+    const totalMinutes = Math.floor(reward.rewardedSeconds / 60);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    const duration = hours > 0 ? `${hours} 小时 ${minutes} 分钟` : `${minutes} 分钟`;
+    return `离线 ${duration} · 收益 +${reward.gold} 金币`;
   }
 
   private render(snapshot: BattleSnapshot): void {

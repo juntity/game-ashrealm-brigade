@@ -12,7 +12,7 @@ import {
 } from 'cc';
 import { BattleScreen } from '../screens/BattleScreen';
 import { BattleProgress } from '../modules/battle/BattleModel';
-import { OfflineRewardCalculator } from '../modules/offline/OfflineRewardCalculator';
+import { OfflineReward, OfflineRewardCalculator } from '../modules/offline/OfflineRewardCalculator';
 import { EconomyCalculator } from '../modules/economy/EconomyCalculator';
 import { GAME_BALANCE } from '../config/GameBalanceConfig';
 import { CocosPlatformAdapter } from '../platform/CocosPlatformAdapter';
@@ -32,13 +32,17 @@ export class Bootstrap extends Component {
   private readonly offlineRewardCalculator = new OfflineRewardCalculator();
   private readonly economyCalculator = new EconomyCalculator();
   private saveData: SaveData | null = null;
-  private offlineGold = 0;
+  private offlineReward: OfflineReward = {
+    elapsedSeconds: 0,
+    rewardedSeconds: 0,
+    gold: 0,
+  };
   private removeHideListener: (() => void) | null = null;
   private removeShowListener: (() => void) | null = null;
 
   protected start(): void {
     this.saveData = this.saveService.load();
-    this.offlineGold = this.applyOfflineReward();
+    this.offlineReward = this.applyOfflineReward();
     this.removeHideListener = this.platform.onHide(() => this.onAppHide());
     this.removeShowListener = this.platform.onShow(() => this.onAppShow());
     this.buildLaunchScreen();
@@ -51,9 +55,11 @@ export class Bootstrap extends Component {
     this.createLabel('烬境旅团', 64, new Color(242, 207, 128, 255), new Vec3(0, 260, 0));
     this.createLabel('ASHREALM BRIGADE', 22, new Color(165, 174, 190, 255), new Vec3(0, 198, 0));
     this.createLabel('集结英雄，穿越烬境', 28, new Color(220, 223, 229, 255), new Vec3(0, 95, 0));
-    if (this.offlineGold > 0) {
+    if (this.offlineReward.gold > 0) {
       this.createLabel(
-        `离线收益 +${this.offlineGold} 金币`,
+        `${this.formatOfflineDuration(this.offlineReward.rewardedSeconds)} · 离线收益 +${
+          this.offlineReward.gold
+        } 金币`,
         24,
         new Color(142, 201, 148, 255),
         new Vec3(0, 20, 0),
@@ -202,13 +208,16 @@ export class Bootstrap extends Component {
   }
 
   private onAppShow(): void {
-    const gold = this.applyOfflineReward();
-    if (gold > 0) {
-      this.battleScreen?.grantOfflineGold(gold);
+    const reward = this.applyOfflineReward();
+    this.offlineReward = reward;
+    if (this.battleScreen !== null) {
+      this.battleScreen.showOfflineReward(reward);
+      return;
     }
+    this.buildLaunchScreen();
   }
 
-  private applyOfflineReward(): number {
+  private applyOfflineReward(): OfflineReward {
     const current = this.requireSaveData();
     const heroLevel = current.heroes[0]?.level ?? 1;
     const reward = this.offlineRewardCalculator.calculate({
@@ -218,11 +227,12 @@ export class Bootstrap extends Component {
         current.progress.stage,
         heroLevel,
       ),
+      minimumOfflineSeconds: GAME_BALANCE.economy.offlineMinimumMinutes * 60,
       maxOfflineSeconds: GAME_BALANCE.economy.offlineMaxHours * 60 * 60,
     });
 
     if (reward.gold === 0) {
-      return 0;
+      return reward;
     }
 
     this.saveData = this.saveService.save({
@@ -232,6 +242,13 @@ export class Bootstrap extends Component {
         gold: current.player.gold + reward.gold,
       },
     });
-    return reward.gold;
+    return reward;
+  }
+
+  private formatOfflineDuration(seconds: number): string {
+    const totalMinutes = Math.floor(seconds / 60);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return hours > 0 ? `离线 ${hours} 小时 ${minutes} 分钟` : `离线 ${minutes} 分钟`;
   }
 }

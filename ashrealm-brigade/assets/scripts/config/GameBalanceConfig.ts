@@ -19,6 +19,7 @@ export interface GameBalanceConfig {
     readonly monsterStageGoldFactor: number;
     readonly bossGold: number;
     readonly offlineEfficiency: number;
+    readonly offlineMinimumMinutes: number;
     readonly offlineMaxHours: number;
     readonly minimumKillSeconds: number;
   };
@@ -44,7 +45,8 @@ export const GAME_BALANCE: Readonly<GameBalanceConfig> = Object.freeze({
     monsterBaseGold: 5,
     monsterStageGoldFactor: 1.5,
     bossGold: 100,
-    offlineEfficiency: 0.35,
+    offlineEfficiency: 0.2,
+    offlineMinimumMinutes: 1,
     offlineMaxHours: 12,
     minimumKillSeconds: 1,
   },
