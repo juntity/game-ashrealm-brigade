@@ -251,8 +251,6 @@ export class BattleScreen {
       this.statusLabel.string = '战斗已暂停';
     } else if (snapshot.state === 'failed') {
       this.statusLabel.string = '挑战失败：Boss 已狂暴';
-    } else if (snapshot.state === 'chapter-complete') {
-      this.statusLabel.string = '首章灰盒完成！';
     } else if (snapshot.enemyKind === 'boss') {
       this.statusLabel.string = `章节 Boss · 剩余 ${Math.ceil(
         snapshot.bossSecondsRemaining ?? 0,

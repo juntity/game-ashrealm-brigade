@@ -5,7 +5,7 @@ import { HeroRoster } from '../hero/HeroRoster';
 import { DamageCalculator } from './DamageCalculator';
 import { createDefaultSaveData, HeroSave } from '../../save/SaveData';
 
-export type BattleState = 'fighting' | 'failed' | 'chapter-complete';
+export type BattleState = 'fighting' | 'failed';
 export type EnemyKind = 'normal' | 'boss';
 
 export interface BattleProgress {
@@ -226,8 +226,7 @@ export class BattleModel {
       this.gold += this.economyCalculator.getKillGold(this.stage, true);
       this.stage += 1;
       this.reachStage(this.stage);
-      this.state = 'chapter-complete';
-      this.bossSecondsRemaining = null;
+      this.spawnCurrentEnemy();
       this.markProgressChanged();
       return;
     }
@@ -235,12 +234,16 @@ export class BattleModel {
     this.gold += this.economyCalculator.getKillGold(this.stage, false);
     this.stage += 1;
     this.reachStage(this.stage);
+    this.spawnCurrentEnemy();
+    this.markProgressChanged();
+  }
+
+  private spawnCurrentEnemy(): void {
     this.enemyKind = this.economyCalculator.isBossStage(this.stage) ? 'boss' : 'normal';
     this.monsterMaxHp = this.economyCalculator.getMonsterHp(this.stage, this.enemyKind === 'boss');
     this.monsterHp = this.monsterMaxHp;
     this.bossSecondsRemaining =
       this.enemyKind === 'boss' ? GAME_BALANCE.battle.bossDurationSeconds : null;
-    this.markProgressChanged();
   }
 
   private getUpgradeCost(): number {

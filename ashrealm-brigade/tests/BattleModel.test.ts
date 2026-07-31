@@ -113,21 +113,24 @@ describe('BattleModel', () => {
     expect(model.getSnapshot().bossSecondsRemaining).toBe(24);
   });
 
-  it('marks the chapter complete after defeating the boss', () => {
+  it('automatically starts the next normal stage after defeating the boss', () => {
     const model = new BattleModel();
     clickUntilStage(model, 10);
 
     for (let index = 0; index < 1_000; index += 1) {
       model.clickAttack();
-      if (model.getSnapshot().state === 'chapter-complete') {
+      if (model.getSnapshot().stage === 11) {
         break;
       }
     }
 
     expect(model.getSnapshot()).toMatchObject({
       stage: 11,
-      state: 'chapter-complete',
-      enemyKind: 'boss',
+      state: 'fighting',
+      enemyKind: 'normal',
+      monsterHp: 132,
+      monsterMaxHp: 132,
+      bossSecondsRemaining: null,
     });
     expect(model.exportProgress().stage).toBe(11);
   });
