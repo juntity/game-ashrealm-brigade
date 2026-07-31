@@ -54,6 +54,8 @@ UI/表现层 → 应用服务层 → 领域逻辑层
 
 任务配置位于 `TaskConfig.ts`，每日任务与永久成就共用事件类型。`TaskTracker` 负责封顶累计、跨天清空每日进度、保留成就，以及幂等奖励领取；奖励直接生成新的 `PlayerSave`，不允许负数扣款。`Bootstrap` 比较保存前后的战斗和装备数据，将击杀、通关、英雄升级、装备强化与穿戴转换为任务事件。任务数据从存档 Schema v6 起持久化。
 
+资源账本由 `ResourceLedger` 统一生成，覆盖战斗、离线、任务、英雄升级、装备强化/升星、出售与分解。每条记录包含递增序号、时间、资源、带符号变化量、变化后余额和稳定 `sourceId`；缺少来源或产生负余额时拒绝记录。存档只保留最近 100 条流水，Schema v8 为旧存档补空账本。启动页“检查存档”在开发阶段展示流水数量和最近来源。
+
 ## 4. 核心状态机
 
 战斗状态：`Loading → Fighting → MonsterDead → Spawning`；Boss 关使用 `BossIntro → Fighting → Victory | Failed → Settlement`。状态切换必须集中处理，避免动画回调决定业务结果。

@@ -27,6 +27,7 @@ import { TaskScreen } from '../screens/TaskScreen';
 import { TaskTracker } from '../modules/task/TaskTracker';
 import { EquipmentInventory } from '../modules/equip/EquipmentInventory';
 import { HeroScreen } from '../screens/HeroScreen';
+import { ResourceChangeSources, ResourceLedger } from '../modules/economy/ResourceLedger';
 
 type GamePage = 'battle' | 'heroes' | EquipmentPageMode | 'tasks';
 
@@ -278,7 +279,7 @@ export class Bootstrap extends Component {
       `V${saveData.schemaVersion} R${saveData.revision} · 关卡 ${saveData.progress.stage}` +
       ` · 英雄 Lv.${heroLevel} · 金币 ${saveData.player.gold}\n${this.formatDiagnostics(
         diagnostics,
-      )}`;
+      )}\n${this.formatLatestLedger(saveData)}`;
     this.buildLaunchScreen();
   }
 
@@ -348,7 +349,7 @@ export class Bootstrap extends Component {
     taskTracker.record('monster-kill', clearedStages);
     taskTracker.record('stage-clear', clearedStages);
     taskTracker.record('hero-upgrade', heroUpgrades);
-    this.saveData = this.saveService.save({
+    const next: SaveData = {
       ...current,
       player: {
         ...current.player,
@@ -366,7 +367,12 @@ export class Bootstrap extends Component {
       equipment: dropResult.equipment,
       tasks: taskTracker.toSave(),
       equipmentDropPity: dropResult.pity,
-    });
+    };
+    this.saveData = this.saveService.save(
+      this.withResourceLedger(current, next, {
+        gold: progress.gold >= current.player.gold ? 'battle-kill' : 'hero-upgrade',
+      }),
+    );
     if (latestDropName !== null) {
       this.battleScreen?.showEquipmentDrop(latestDropName);
     }
@@ -397,7 +403,43 @@ export class Bootstrap extends Component {
       return total + Math.max(0, hero.level - previousLevel);
     }, 0);
     taskTracker.record('hero-upgrade', heroUpgrades);
-    this.saveData = this.saveService.save({ ...next, tasks: taskTracker.toSave() });
+    const starIncrease = next.equipment.inventory.reduce((total, item) => {
+      const previous = current.equipment.inventory.find(
+        (entry) => entry.instanceId === item.instanceId,
+      );
+      return total + Math.max(0, item.starLevel - (previous?.starLevel ?? item.starLevel));
+    }, 0);
+    const removedItems = Math.max(
+      0,
+      current.equipment.inventory.length - next.equipment.inventory.length,
+    );
+    const claimedRewards = countClaimed(next.tasks) - countClaimed(current.tasks);
+    const sources: ResourceChangeSources = {
+      gold:
+        next.player.gold === current.player.gold
+          ? undefined
+          : next.player.gold < current.player.gold
+            ? heroUpgrades > 0
+              ? 'hero-upgrade'
+              : 'equipment-enhance'
+            : claimedRewards > 0
+              ? 'task-reward'
+              : 'equipment-sell',
+      equipmentEssence:
+        next.player.equipmentEssence === current.player.equipmentEssence
+          ? undefined
+          : next.player.equipmentEssence < current.player.equipmentEssence
+            ? starIncrease > 0
+              ? 'equipment-star'
+              : undefined
+            : claimedRewards > 0
+              ? 'task-reward'
+              : removedItems > 0
+                ? 'equipment-salvage'
+                : undefined,
+    };
+    const nextWithTasks = { ...next, tasks: taskTracker.toSave() };
+    this.saveData = this.saveService.save(this.withResourceLedger(current, nextWithTasks, sources));
     this.battleScreen?.synchronizeGold(this.saveData.player.gold);
     this.battleScreen?.synchronizeEquipment(this.saveData.equipment);
     this.battleScreen?.synchronizeHeroes(this.saveData.heroes);
@@ -506,11 +548,17 @@ export class Bootstrap extends Component {
     }
 
     this.saveData = this.saveService.save({
-      ...current,
-      player: {
-        ...current.player,
-        gold: current.player.gold + reward.gold,
-      },
+      ...this.withResourceLedger(
+        current,
+        {
+          ...current,
+          player: {
+            ...current.player,
+            gold: current.player.gold + reward.gold,
+          },
+        },
+        { gold: 'offline-reward' },
+      ),
     });
     return reward;
   }
@@ -537,4 +585,30 @@ export class Bootstrap extends Component {
     }
     return slot.valid ? '有效' : '损坏';
   }
+
+  private withResourceLedger(
+    current: SaveData,
+    next: SaveData,
+    sources: ResourceChangeSources,
+  ): SaveData {
+    const ledger = new ResourceLedger(current.resourceLedger);
+    ledger.recordChanges(current.player, next.player, sources, this.platform.now());
+    return { ...next, resourceLedger: ledger.toSave() };
+  }
+
+  private formatLatestLedger(saveData: SaveData): string {
+    const entries = saveData.resourceLedger.entries;
+    const latest = entries[entries.length - 1];
+    if (latest === undefined) {
+      return '资源流水 0 条';
+    }
+    const sign = latest.amount > 0 ? '+' : '';
+    return `资源流水 ${entries.length} 条 · 最近 ${latest.sourceId} ${sign}${latest.amount}`;
+  }
+}
+
+function countClaimed(tasks: SaveData['tasks']): number {
+  return [...Object.values(tasks.dailyClaimed), ...Object.values(tasks.achievementClaimed)].filter(
+    Boolean,
+  ).length;
 }

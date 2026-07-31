@@ -8,7 +8,7 @@ describe('SaveService', () => {
     const service = new SaveService(new MemoryStorage(), () => 1_000);
 
     expect(service.load()).toMatchObject({
-      schemaVersion: 7,
+      schemaVersion: 8,
       revision: 0,
       createdAt: 1_000,
       player: { gold: 0, diamonds: 0 },
@@ -97,7 +97,7 @@ describe('SaveService', () => {
     const migrated = new SaveService(storage, () => 3_000).load();
 
     expect(migrated).toMatchObject({
-      schemaVersion: 7,
+      schemaVersion: 8,
       revision: 4,
       player: { gold: 88, diamonds: 0 },
       progress: { stage: 9, highestStage: 9, chapter: 1 },
@@ -106,7 +106,7 @@ describe('SaveService', () => {
       ]),
       claims: {},
     });
-    expect(JSON.parse(storage.getItem('ashrealm.save.v1') ?? '{}').schemaVersion).toBe(7);
+    expect(JSON.parse(storage.getItem('ashrealm.save.v1') ?? '{}').schemaVersion).toBe(8);
   });
 
   it('migrates version one through the complete hero and skill schemas', () => {
@@ -128,7 +128,7 @@ describe('SaveService', () => {
 
     const migrated = new SaveService(storage, () => 3_000).load();
 
-    expect(migrated.schemaVersion).toBe(7);
+    expect(migrated.schemaVersion).toBe(8);
     expect(migrated.progress.highestStage).toBe(11);
     expect(migrated.heroes).toHaveLength(8);
     expect(migrated.heroes[0]).toMatchObject({
@@ -159,7 +159,7 @@ describe('SaveService', () => {
 
     const migrated = new SaveService(storage, () => 2_000).load();
 
-    expect(migrated.schemaVersion).toBe(7);
+    expect(migrated.schemaVersion).toBe(8);
     expect(migrated.skills.equippedSkillIds).toEqual([
       'skill_ember_slash',
       'skill_meteor',
@@ -182,7 +182,7 @@ describe('SaveService', () => {
 
     const migrated = new SaveService(storage, () => 2_000).load();
 
-    expect(migrated.schemaVersion).toBe(7);
+    expect(migrated.schemaVersion).toBe(8);
     expect(migrated.equipment).toEqual({ inventory: [], equippedBySlot: {} });
   });
 
@@ -208,7 +208,7 @@ describe('SaveService', () => {
 
     const migrated = new SaveService(storage, () => 2_000).load();
 
-    expect(migrated.schemaVersion).toBe(7);
+    expect(migrated.schemaVersion).toBe(8);
     expect(migrated.player.equipmentEssence).toBe(0);
     expect(migrated.equipment.inventory[0]).toMatchObject({
       instanceId: 'legacy_weapon',
@@ -225,7 +225,7 @@ describe('SaveService', () => {
 
     const migrated = new SaveService(storage, () => 2_000).load();
 
-    expect(migrated.schemaVersion).toBe(7);
+    expect(migrated.schemaVersion).toBe(8);
     expect(migrated.tasks).toEqual({
       dailyDateKey: '',
       dailyProgress: {},
@@ -243,8 +243,20 @@ describe('SaveService', () => {
 
     const migrated = new SaveService(storage, () => 2_000).load();
 
-    expect(migrated.schemaVersion).toBe(7);
+    expect(migrated.schemaVersion).toBe(8);
     expect(migrated.equipmentDropPity).toEqual({ normalMisses: 0, bossesSinceMythic: 0 });
+  });
+
+  it('migrates version seven by adding an empty resource ledger', () => {
+    const storage = new MemoryStorage();
+    const versionSeven: Record<string, unknown> = { ...createDefaultSaveData(1_000) };
+    delete versionSeven.resourceLedger;
+    storage.setItem('ashrealm.save.v1', JSON.stringify({ ...versionSeven, schemaVersion: 7 }));
+
+    const migrated = new SaveService(storage, () => 2_000).load();
+
+    expect(migrated.schemaVersion).toBe(8);
+    expect(migrated.resourceLedger).toEqual({ nextSequence: 1, entries: [] });
   });
 
   it('uses a default save when every stored candidate is corrupted', () => {
@@ -371,6 +383,30 @@ describe('SaveService', () => {
       service.save({
         ...initial,
         tasks: { ...initial.tasks, dailyProgress: { daily_kill_10: 11 } },
+      }),
+    ).toThrow('invalid SaveData');
+  });
+
+  it('rejects malformed resource ledger entries', () => {
+    const service = new SaveService(new MemoryStorage(), () => 1_000);
+    const initial = service.load();
+
+    expect(() =>
+      service.save({
+        ...initial,
+        resourceLedger: {
+          nextSequence: 2,
+          entries: [
+            {
+              sequence: 1,
+              timestamp: 1_000,
+              resource: 'gold',
+              amount: 10,
+              balanceAfter: 10,
+              sourceId: 'unknown-source',
+            },
+          ],
+        },
       }),
     ).toThrow('invalid SaveData');
   });

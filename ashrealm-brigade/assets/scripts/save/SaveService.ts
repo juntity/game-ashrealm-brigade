@@ -4,6 +4,10 @@ import { MAX_ACTIVE_SKILL_SLOTS, SKILL_CONFIG } from '../config/SkillConfig';
 import { EQUIPMENT_CONFIG, EquipmentSlot } from '../config/EquipmentConfig';
 import { TASK_CONFIGS, TaskCategory } from '../config/TaskConfig';
 import { EQUIPMENT_DROP_CONFIG } from '../config/EquipmentDropConfig';
+import {
+  MAX_RESOURCE_LEDGER_ENTRIES,
+  RESOURCE_SOURCE_IDS,
+} from '../modules/economy/ResourceLedger';
 import { createDefaultSaveData, SAVE_SCHEMA_VERSION, SaveData } from './SaveData';
 import { SaveMigrator } from './SaveMigrator';
 
@@ -299,6 +303,7 @@ export class SaveService {
       data.equipmentDropPity.normalMisses <= EQUIPMENT_DROP_CONFIG.normalPityMisses &&
       this.isNonNegativeInteger(data.equipmentDropPity.bossesSinceMythic) &&
       data.equipmentDropPity.bossesSinceMythic < EQUIPMENT_DROP_CONFIG.bossMythicHardPity &&
+      this.hasValidResourceLedger(data.resourceLedger) &&
       typeof data.claims === 'object' &&
       data.claims !== null &&
       !Array.isArray(data.claims) &&
@@ -363,6 +368,37 @@ export class SaveService {
     return Object.entries(value).every(
       ([taskId, claimed]) => validIds.has(taskId) && typeof claimed === 'boolean',
     );
+  }
+
+  private hasValidResourceLedger(value: unknown): boolean {
+    if (typeof value !== 'object' || value === null) {
+      return false;
+    }
+    const ledger = value as SaveData['resourceLedger'];
+    if (
+      !this.isPositiveInteger(ledger.nextSequence) ||
+      !Array.isArray(ledger.entries) ||
+      ledger.entries.length > MAX_RESOURCE_LEDGER_ENTRIES
+    ) {
+      return false;
+    }
+    let previousSequence = 0;
+    return ledger.entries.every((entry) => {
+      const valid =
+        typeof entry === 'object' &&
+        entry !== null &&
+        this.isPositiveInteger(entry.sequence) &&
+        entry.sequence > previousSequence &&
+        entry.sequence < ledger.nextSequence &&
+        this.isFiniteNumber(entry.timestamp) &&
+        (entry.resource === 'gold' || entry.resource === 'equipment-essence') &&
+        Number.isInteger(entry.amount) &&
+        entry.amount !== 0 &&
+        this.isNonNegativeInteger(entry.balanceAfter) &&
+        RESOURCE_SOURCE_IDS.includes(entry.sourceId as (typeof RESOURCE_SOURCE_IDS)[number]);
+      previousSequence = entry.sequence;
+      return valid;
+    });
   }
 
   private clone(data: SaveData): SaveData {

@@ -101,6 +101,14 @@ const MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
       bossesSinceMythic: 0,
     },
   }),
+  7: (data) => ({
+    ...data,
+    schemaVersion: 8,
+    resourceLedger: {
+      nextSequence: 1,
+      entries: [],
+    },
+  }),
 };
 
 export class SaveMigrator {
