@@ -38,7 +38,7 @@ describe('HeroRoster', () => {
     }));
     const roster = new HeroRoster(heroes);
 
-    expect(roster.getTotalDps()).toBe(3);
+    expect(roster.getTotalDps()).toBeCloseTo(3.924, 3);
     roster.autoDeployStrongestSupports();
 
     expect(roster.getDeployedSupportCount()).toBe(3);

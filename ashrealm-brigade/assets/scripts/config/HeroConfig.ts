@@ -99,7 +99,7 @@ function createHero(
       stage: unlockStage,
     },
     activeSkillIds: getInitialActiveSkillIds(role),
-    passiveSkillIds: [],
+    passiveSkillIds: getInitialPassiveSkillIds(role),
   };
 }
 
@@ -116,4 +116,18 @@ function getInitialActiveSkillIds(role: HeroRole): readonly string[] {
     default:
       return [];
   }
+}
+
+function getInitialPassiveSkillIds(role: HeroRole): readonly string[] {
+  const ids: Record<HeroRole, string> = {
+    swordsman: 'passive_main_attack',
+    mage: 'passive_mage_attack',
+    archer: 'passive_archer_crit',
+    priest: 'passive_priest_gold',
+    assassin: 'passive_assassin_crit',
+    berserker: 'passive_berserker_attack',
+    elementalist: 'passive_elementalist_offline',
+    paladin: 'passive_paladin_gold',
+  };
+  return [ids[role]];
 }

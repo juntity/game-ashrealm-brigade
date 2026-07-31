@@ -13,6 +13,9 @@ export class SkillConfigValidator {
     if (table.activeSkills.length !== MAX_ACTIVE_SKILL_SLOTS) {
       errors.push(`MVP skill config must contain exactly ${MAX_ACTIVE_SKILL_SLOTS} active skills.`);
     }
+    if (table.passiveSkills.length !== HERO_CONFIG.heroes.length) {
+      errors.push('MVP skill config must contain exactly one passive per hero.');
+    }
 
     for (const skill of table.activeSkills) {
       if (!/^skill_[a-z0-9_]+$/.test(skill.id)) {
@@ -38,6 +41,27 @@ export class SkillConfigValidator {
       }
       if (!Number.isInteger(skill.unlockStage) || skill.unlockStage <= 0) {
         errors.push(`Skill ${skill.id} unlockStage must be a positive integer.`);
+      }
+    }
+    for (const passive of table.passiveSkills) {
+      if (!/^passive_[a-z0-9_]+$/.test(passive.id)) {
+        errors.push(`Invalid passive skill id: ${passive.id}.`);
+      } else if (ids.has(passive.id)) {
+        errors.push(`Duplicate skill id: ${passive.id}.`);
+      }
+      ids.add(passive.id);
+
+      const owner = HERO_CONFIG.heroes.find((hero) => hero.id === passive.ownerHeroId);
+      if (owner === undefined) {
+        errors.push(`Passive ${passive.id} references unknown hero ${passive.ownerHeroId}.`);
+      } else if (!owner.passiveSkillIds.includes(passive.id)) {
+        errors.push(`Passive ${passive.id} is missing from owner ${passive.ownerHeroId}.`);
+      }
+      if (!Number.isFinite(passive.value) || passive.value <= 0) {
+        errors.push(`Passive ${passive.id} value must be positive.`);
+      }
+      if (!Number.isInteger(passive.unlockLevel) || passive.unlockLevel <= 0) {
+        errors.push(`Passive ${passive.id} unlockLevel must be a positive integer.`);
       }
     }
     return errors;

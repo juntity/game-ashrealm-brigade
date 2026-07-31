@@ -33,6 +33,7 @@ export interface BattleSnapshot {
   readonly totalDps: number;
   readonly unlockedHeroCount: number;
   readonly deployedSupportCount: number;
+  readonly activePassiveCount: number;
   readonly skillSlots: readonly SkillSlotSnapshot[];
   readonly upgradeCost: number;
 }
@@ -78,8 +79,9 @@ export class BattleModel {
     this.skillBar = new ActiveSkillBar(progress?.equippedSkillIds ?? []);
     this.heroRoster.synchronizeUnlocks(this.highestStage);
     this.heroLevel = this.heroRoster.getMainHero().level;
-    this.heroDamage = this.heroCalculator.getAttack(this.heroLevel);
-    this.totalDps = this.heroRoster.getTotalDps();
+    this.heroDamage = 0;
+    this.totalDps = 0;
+    this.refreshHeroStats();
     this.enemyKind = this.economyCalculator.isBossStage(this.stage) ? 'boss' : 'normal';
     this.monsterMaxHp = this.economyCalculator.getMonsterHp(this.stage, this.enemyKind === 'boss');
     this.monsterHp = this.monsterMaxHp;
@@ -133,8 +135,7 @@ export class BattleModel {
     this.gold -= cost;
     this.heroRoster.levelUp('hero_main');
     this.heroLevel = this.heroRoster.getMainHero().level;
-    this.heroDamage = this.heroCalculator.getAttack(this.heroLevel);
-    this.totalDps = this.heroRoster.getTotalDps();
+    this.refreshHeroStats();
     this.markProgressChanged();
     return true;
   }
@@ -155,6 +156,7 @@ export class BattleModel {
       totalDps: this.totalDps,
       unlockedHeroCount: this.heroRoster.getUnlockedCount(),
       deployedSupportCount: this.heroRoster.getDeployedSupportCount(),
+      activePassiveCount: this.heroRoster.getPassiveBonuses().activeCount,
       skillSlots: this.skillBar.getSnapshot(this.highestStage),
       upgradeCost: this.getUpgradeCost(),
     };
@@ -246,7 +248,7 @@ export class BattleModel {
     }
 
     if (this.enemyKind === 'boss') {
-      this.gold += this.economyCalculator.getKillGold(this.stage, true);
+      this.gold += this.getKillGold(true);
       this.stage += 1;
       this.reachStage(this.stage);
       this.spawnCurrentEnemy();
@@ -254,7 +256,7 @@ export class BattleModel {
       return;
     }
 
-    this.gold += this.economyCalculator.getKillGold(this.stage, false);
+    this.gold += this.getKillGold(false);
     this.stage += 1;
     this.reachStage(this.stage);
     this.spawnCurrentEnemy();
@@ -276,6 +278,17 @@ export class BattleModel {
   private reachStage(stage: number): void {
     this.highestStage = Math.max(this.highestStage, stage);
     this.heroRoster.synchronizeUnlocks(this.highestStage);
+    this.refreshHeroStats();
+  }
+
+  private refreshHeroStats(): void {
+    this.heroDamage = this.heroRoster.getMainAttack();
+    this.totalDps = this.heroRoster.getTotalDps();
+  }
+
+  private getKillGold(isBoss: boolean): number {
+    const baseGold = this.economyCalculator.getKillGold(this.stage, isBoss);
+    return Math.floor(baseGold * this.heroRoster.getPassiveBonuses().goldMultiplier);
   }
 
   private markProgressChanged(): void {

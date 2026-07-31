@@ -23,4 +23,8 @@ describe('EconomyCalculator', () => {
     expect(offlineGoldPerMinute).toBe(7);
     expect(offlineGoldPerMinute / activeGoldPerMinute).toBeCloseTo(0.194, 2);
   });
+
+  it('applies gold and offline passive multipliers', () => {
+    expect(calculator.getOfflineGoldPerMinute(1, 3, 1.1, 1.15)).toBe(9);
+  });
 });

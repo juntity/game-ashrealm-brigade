@@ -7,6 +7,7 @@ describe('active skill configuration', () => {
   it('contains four valid active skills', () => {
     expect(new SkillConfigValidator().validate(SKILL_CONFIG)).toEqual([]);
     expect(SKILL_CONFIG.activeSkills).toHaveLength(4);
+    expect(SKILL_CONFIG.passiveSkills).toHaveLength(8);
   });
 });
 

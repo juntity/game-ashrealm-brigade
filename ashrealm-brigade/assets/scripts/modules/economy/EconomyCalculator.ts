@@ -29,13 +29,26 @@ export class EconomyCalculator {
     );
   }
 
-  public getOfflineGoldPerMinute(stage: number, totalDps: number): number {
+  public getOfflineGoldPerMinute(
+    stage: number,
+    totalDps: number,
+    goldMultiplier = 1,
+    offlineMultiplier = 1,
+  ): number {
     const referenceStage = this.isBossStage(stage) ? Math.max(1, stage - 1) : stage;
     const monsterHp = this.getMonsterHp(referenceStage, false);
     const normalizedDps = Math.max(1, totalDps);
     const killSeconds = Math.max(this.config.economy.minimumKillSeconds, monsterHp / normalizedDps);
-    const activeGoldPerMinute = (this.getKillGold(referenceStage, false) * 60) / killSeconds;
+    const killGold = this.getKillGold(referenceStage, false) * Math.max(1, goldMultiplier);
+    const activeGoldPerMinute = (killGold * 60) / killSeconds;
 
-    return Math.max(1, Math.floor(activeGoldPerMinute * this.config.economy.offlineEfficiency));
+    return Math.max(
+      1,
+      Math.floor(
+        activeGoldPerMinute *
+          this.config.economy.offlineEfficiency *
+          Math.max(1, offlineMultiplier),
+      ),
+    );
   }
 }

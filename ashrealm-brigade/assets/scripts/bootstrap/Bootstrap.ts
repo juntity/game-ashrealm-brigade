@@ -313,12 +313,15 @@ export class Bootstrap extends Component {
   private applyOfflineReward(): OfflineReward {
     const current = this.requireSaveData();
     const heroRoster = new HeroRoster(current.heroes);
+    const passiveBonuses = heroRoster.getPassiveBonuses();
     const reward = this.offlineRewardCalculator.calculate({
       lastActiveAt: current.lastActiveAt,
       now: this.platform.now(),
       goldPerMinute: this.economyCalculator.getOfflineGoldPerMinute(
         current.progress.stage,
         heroRoster.getTotalDps(),
+        passiveBonuses.goldMultiplier,
+        passiveBonuses.offlineMultiplier,
       ),
       minimumOfflineSeconds: GAME_BALANCE.economy.offlineMinimumMinutes * 60,
       maxOfflineSeconds: GAME_BALANCE.economy.offlineMaxHours * 60 * 60,

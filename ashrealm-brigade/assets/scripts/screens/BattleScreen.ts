@@ -55,7 +55,7 @@ export class BattleScreen {
     this.hpBar = this.createHpBar();
     this.hpLabel = this.createLabel('HpLabel', 23, 0, 70);
 
-    this.heroLabel = this.createLabel('HeroLabel', 27, 0, -245);
+    this.heroLabel = this.createLabel('HeroLabel', 23, 0, -225);
     this.formationButton = this.createWideSmallButton('FormationButton', 250, -310);
     this.formationLabel = this.createLabelNode(this.formationButton, '自动编队', 21);
     this.upgradeButton = this.createButton('UpgradeButton', 0, -400);
@@ -290,8 +290,8 @@ export class BattleScreen {
     this.goldLabel.string = `金币 ${snapshot.gold}`;
     this.hpLabel.string = `${snapshot.monsterHp} / ${snapshot.monsterMaxHp}`;
     this.heroLabel.string =
-      `主角 Lv.${snapshot.heroLevel} · 队伍 DPS ${snapshot.totalDps.toFixed(1)}` +
-      ` · 支援 ${snapshot.deployedSupportCount}/3`;
+      `主角 Lv.${snapshot.heroLevel} · 队伍 DPS ${snapshot.totalDps.toFixed(1)}\n` +
+      `支援 ${snapshot.deployedSupportCount}/3 · 生效被动 ${snapshot.activePassiveCount}`;
     this.formationLabel.string = `自动编队 ${snapshot.unlockedHeroCount}/8`;
     snapshot.skillSlots.forEach((slot, index) => {
       const label = this.skillLabels[index];

@@ -147,7 +147,7 @@ describe('BattleModel', () => {
       stage: 10,
       gold: 88,
       heroLevel: 4,
-      heroDamage: 9,
+      heroDamage: 9.72,
       enemyKind: 'boss',
       monsterHp: 600,
       bossSecondsRemaining: 30,
@@ -185,8 +185,9 @@ describe('BattleModel', () => {
     expect(model.getSnapshot()).toMatchObject({
       unlockedHeroCount: 2,
       deployedSupportCount: 0,
-      totalDps: 3,
+      activePassiveCount: 1,
     });
+    expect(model.getSnapshot().totalDps).toBeGreaterThan(3);
     expect(model.autoDeployStrongestSupports()).toBe(true);
     expect(model.getSnapshot()).toMatchObject({
       unlockedHeroCount: 2,

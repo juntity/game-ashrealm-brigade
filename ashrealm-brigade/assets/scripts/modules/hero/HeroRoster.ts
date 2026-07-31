@@ -1,6 +1,7 @@
 import { HERO_CONFIG, HeroConfig, MAIN_HERO_ID } from '../../config/HeroConfig';
 import { HeroSave } from '../../save/SaveData';
 import { HeroCalculator } from './HeroCalculator';
+import { PassiveBonuses, PassiveSkillAggregator } from '../skill/PassiveSkillAggregator';
 
 export const MAX_SUPPORT_HEROES = 3;
 
@@ -10,6 +11,7 @@ export class HeroRoster {
   private heroes: HeroSave[];
   private readonly configs = new Map(HERO_CONFIG.heroes.map((hero) => [hero.id, hero]));
   private readonly calculator = new HeroCalculator();
+  private readonly passiveAggregator = new PassiveSkillAggregator();
 
   public constructor(heroes: readonly HeroSave[]) {
     this.heroes = heroes.map((hero) => ({ ...hero }));
@@ -54,10 +56,11 @@ export class HeroRoster {
   }
 
   public autoDeployStrongestSupports(): boolean {
+    const bonuses = this.getPassiveBonuses();
     const selectedIds = new Set(
       this.heroes
         .filter((hero) => hero.heroId !== MAIN_HERO_ID && hero.isUnlocked)
-        .sort((left, right) => this.getHeroDps(right) - this.getHeroDps(left))
+        .sort((left, right) => this.getHeroDps(right, bonuses) - this.getHeroDps(left, bonuses))
         .slice(0, MAX_SUPPORT_HEROES)
         .map((hero) => hero.heroId),
     );
@@ -87,9 +90,22 @@ export class HeroRoster {
   }
 
   public getTotalDps(): number {
+    const bonuses = this.getPassiveBonuses();
     return this.heroes
       .filter((hero) => hero.isDeployed && hero.isUnlocked)
-      .reduce((total, hero) => total + this.getHeroDps(hero), 0);
+      .reduce((total, hero) => total + this.getHeroDps(hero, bonuses), 0);
+  }
+
+  public getMainAttack(): number {
+    const mainHero = this.getMainHero();
+    const config = this.requireConfig(mainHero.heroId);
+    return (
+      this.calculator.getAttack(mainHero.level, config) * this.getPassiveBonuses().attackMultiplier
+    );
+  }
+
+  public getPassiveBonuses(): PassiveBonuses {
+    return this.passiveAggregator.calculate(this.heroes);
   }
 
   public getMainHero(): HeroSave {
@@ -112,9 +128,12 @@ export class HeroRoster {
     return this.heroes.filter((hero) => hero.isUnlocked).length;
   }
 
-  private getHeroDps(hero: HeroSave): number {
+  private getHeroDps(hero: HeroSave, bonuses: PassiveBonuses): number {
     const config = this.requireConfig(hero.heroId);
-    return this.calculator.getAttack(hero.level, config) / config.attackIntervalSeconds;
+    const attack = this.calculator.getAttack(hero.level, config) * bonuses.attackMultiplier;
+    const criticalRate = Math.min(1, config.criticalRate + bonuses.criticalRateBonus);
+    const expectedCriticalMultiplier = 1 + criticalRate * (config.criticalDamage - 1);
+    return (attack * expectedCriticalMultiplier) / config.attackIntervalSeconds;
   }
 
   private requireConfig(heroId: string): HeroConfig {
