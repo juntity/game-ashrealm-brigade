@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2021",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": ["vitest/globals"],
+    "lib": ["ES2021", "DOM"]
+  },
+  "include": [
+    "assets/scripts/modules/**/*.ts",
+    "assets/scripts/platform/**/*.ts",
+    "assets/scripts/save/**/*.ts",
+    "tests/**/*.ts"
+  ]
+}

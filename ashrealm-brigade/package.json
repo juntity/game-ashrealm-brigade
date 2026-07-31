@@ -5,6 +5,7 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.logic.json",
     "lint": "eslint assets/scripts tests",
     "format": "prettier --write \"assets/scripts/**/*.ts\" \"tests/**/*.ts\"",
     "format:check": "prettier --check \"assets/scripts/**/*.ts\" \"tests/**/*.ts\""

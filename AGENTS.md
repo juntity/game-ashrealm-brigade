@@ -13,6 +13,7 @@
 在 `ashrealm-brigade/` 中运行工程质量命令：
 
 - `npm test`：运行 Vitest 纯逻辑单元测试。
+- `npm run typecheck`：严格检查不依赖 Creator 的领域与存档代码。
 - `npm run lint`：检查 TypeScript 代码规范。
 - `npm run format:check`：验证 Prettier 格式。
 - `npm run format`：格式化源码与测试。
