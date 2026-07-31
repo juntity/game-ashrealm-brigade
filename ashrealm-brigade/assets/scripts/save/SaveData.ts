@@ -2,7 +2,7 @@ import { HERO_CONFIG, MAIN_HERO_ID } from '../config/HeroConfig';
 import { SKILL_CONFIG } from '../config/SkillConfig';
 import { EquipmentRarity, EquipmentSlot } from '../config/EquipmentConfig';
 
-export const SAVE_SCHEMA_VERSION = 5;
+export const SAVE_SCHEMA_VERSION = 6;
 
 export interface SaveData {
   readonly schemaVersion: number;
@@ -15,6 +15,7 @@ export interface SaveData {
   readonly heroes: HeroSave[];
   readonly skills: SkillSave;
   readonly equipment: EquipmentCollectionSave;
+  readonly tasks: TaskSave;
   readonly claims: Record<string, boolean>;
 }
 
@@ -62,6 +63,14 @@ export interface EquipmentCollectionSave {
   readonly equippedBySlot: Partial<Record<EquipmentSlot, string>>;
 }
 
+export interface TaskSave {
+  readonly dailyDateKey: string;
+  readonly dailyProgress: Record<string, number>;
+  readonly dailyClaimed: Record<string, boolean>;
+  readonly achievementProgress: Record<string, number>;
+  readonly achievementClaimed: Record<string, boolean>;
+}
+
 export function createDefaultSaveData(now: number): SaveData {
   return {
     schemaVersion: SAVE_SCHEMA_VERSION,
@@ -91,6 +100,13 @@ export function createDefaultSaveData(now: number): SaveData {
     equipment: {
       inventory: [],
       equippedBySlot: {},
+    },
+    tasks: {
+      dailyDateKey: '',
+      dailyProgress: {},
+      dailyClaimed: {},
+      achievementProgress: {},
+      achievementClaimed: {},
     },
     claims: {},
   };

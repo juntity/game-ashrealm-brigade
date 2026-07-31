@@ -52,6 +52,8 @@ UI/表现层 → 应用服务层 → 领域逻辑层
 
 当前灰盒由 `Bootstrap` 统一管理战斗、装备、背包导航。`StageEquipmentDropper` 根据存档关卡与最新关卡之间的差值，为每个已通关关卡生成一次装备掉落；`EquipmentManagementScreen` 以 `equipment` / `bag` 两种模式渲染装备槽、列表和操作。切换页面时从最新存档重建页面，避免金币、背包或穿戴状态不同步。
 
+任务配置位于 `TaskConfig.ts`，每日任务与永久成就共用事件类型。`TaskTracker` 负责封顶累计、跨天清空每日进度、保留成就，以及幂等奖励领取；奖励直接生成新的 `PlayerSave`，不允许负数扣款。`Bootstrap` 比较保存前后的战斗和装备数据，将击杀、通关、英雄升级、装备强化与穿戴转换为任务事件。任务数据从存档 Schema v6 起持久化。
+
 ## 4. 核心状态机
 
 战斗状态：`Loading → Fighting → MonsterDead → Spawning`；Boss 关使用 `BossIntro → Fighting → Victory | Failed → Settlement`。状态切换必须集中处理，避免动画回调决定业务结果。

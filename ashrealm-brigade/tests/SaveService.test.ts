@@ -8,7 +8,7 @@ describe('SaveService', () => {
     const service = new SaveService(new MemoryStorage(), () => 1_000);
 
     expect(service.load()).toMatchObject({
-      schemaVersion: 5,
+      schemaVersion: 6,
       revision: 0,
       createdAt: 1_000,
       player: { gold: 0, diamonds: 0 },
@@ -97,7 +97,7 @@ describe('SaveService', () => {
     const migrated = new SaveService(storage, () => 3_000).load();
 
     expect(migrated).toMatchObject({
-      schemaVersion: 5,
+      schemaVersion: 6,
       revision: 4,
       player: { gold: 88, diamonds: 0 },
       progress: { stage: 9, highestStage: 9, chapter: 1 },
@@ -106,7 +106,7 @@ describe('SaveService', () => {
       ]),
       claims: {},
     });
-    expect(JSON.parse(storage.getItem('ashrealm.save.v1') ?? '{}').schemaVersion).toBe(5);
+    expect(JSON.parse(storage.getItem('ashrealm.save.v1') ?? '{}').schemaVersion).toBe(6);
   });
 
   it('migrates version one through the complete hero and skill schemas', () => {
@@ -128,7 +128,7 @@ describe('SaveService', () => {
 
     const migrated = new SaveService(storage, () => 3_000).load();
 
-    expect(migrated.schemaVersion).toBe(5);
+    expect(migrated.schemaVersion).toBe(6);
     expect(migrated.progress.highestStage).toBe(11);
     expect(migrated.heroes).toHaveLength(8);
     expect(migrated.heroes[0]).toMatchObject({
@@ -159,7 +159,7 @@ describe('SaveService', () => {
 
     const migrated = new SaveService(storage, () => 2_000).load();
 
-    expect(migrated.schemaVersion).toBe(5);
+    expect(migrated.schemaVersion).toBe(6);
     expect(migrated.skills.equippedSkillIds).toEqual([
       'skill_ember_slash',
       'skill_meteor',
@@ -182,7 +182,7 @@ describe('SaveService', () => {
 
     const migrated = new SaveService(storage, () => 2_000).load();
 
-    expect(migrated.schemaVersion).toBe(5);
+    expect(migrated.schemaVersion).toBe(6);
     expect(migrated.equipment).toEqual({ inventory: [], equippedBySlot: {} });
   });
 
@@ -208,12 +208,30 @@ describe('SaveService', () => {
 
     const migrated = new SaveService(storage, () => 2_000).load();
 
-    expect(migrated.schemaVersion).toBe(5);
+    expect(migrated.schemaVersion).toBe(6);
     expect(migrated.player.equipmentEssence).toBe(0);
     expect(migrated.equipment.inventory[0]).toMatchObject({
       instanceId: 'legacy_weapon',
       enhanceLevel: 3,
       starLevel: 0,
+    });
+  });
+
+  it('migrates version five by adding empty task progress', () => {
+    const storage = new MemoryStorage();
+    const versionFive: Record<string, unknown> = { ...createDefaultSaveData(1_000) };
+    delete versionFive.tasks;
+    storage.setItem('ashrealm.save.v1', JSON.stringify({ ...versionFive, schemaVersion: 5 }));
+
+    const migrated = new SaveService(storage, () => 2_000).load();
+
+    expect(migrated.schemaVersion).toBe(6);
+    expect(migrated.tasks).toEqual({
+      dailyDateKey: '',
+      dailyProgress: {},
+      dailyClaimed: {},
+      achievementProgress: {},
+      achievementClaimed: {},
     });
   });
 
@@ -323,6 +341,24 @@ describe('SaveService', () => {
           ...saved.equipment,
           equippedBySlot: { helmet: weapon.instanceId },
         },
+      }),
+    ).toThrow('invalid SaveData');
+  });
+
+  it('rejects unknown task progress and progress beyond its target', () => {
+    const service = new SaveService(new MemoryStorage(), () => 1_000);
+    const initial = service.load();
+
+    expect(() =>
+      service.save({
+        ...initial,
+        tasks: { ...initial.tasks, dailyProgress: { unknown_task: 1 } },
+      }),
+    ).toThrow('invalid SaveData');
+    expect(() =>
+      service.save({
+        ...initial,
+        tasks: { ...initial.tasks, dailyProgress: { daily_kill_10: 11 } },
       }),
     ).toThrow('invalid SaveData');
   });

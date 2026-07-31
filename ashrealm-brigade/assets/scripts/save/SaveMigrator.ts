@@ -82,6 +82,17 @@ const MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
       },
     };
   },
+  5: (data) => ({
+    ...data,
+    schemaVersion: 6,
+    tasks: {
+      dailyDateKey: '',
+      dailyProgress: {},
+      dailyClaimed: {},
+      achievementProgress: {},
+      achievementClaimed: {},
+    },
+  }),
 };
 
 export class SaveMigrator {

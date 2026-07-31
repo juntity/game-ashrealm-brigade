@@ -2,6 +2,7 @@ import { KeyValueStorage } from '../platform/PlatformAdapter';
 import { HERO_CONFIG, MAIN_HERO_ID } from '../config/HeroConfig';
 import { MAX_ACTIVE_SKILL_SLOTS, SKILL_CONFIG } from '../config/SkillConfig';
 import { EQUIPMENT_CONFIG, EquipmentSlot } from '../config/EquipmentConfig';
+import { TASK_CONFIGS, TaskCategory } from '../config/TaskConfig';
 import { createDefaultSaveData, SAVE_SCHEMA_VERSION, SaveData } from './SaveData';
 import { SaveMigrator } from './SaveMigrator';
 
@@ -284,6 +285,13 @@ export class SaveService {
       data.equipment.equippedBySlot !== null &&
       !Array.isArray(data.equipment.equippedBySlot) &&
       this.hasValidEquippedItems(data.equipment.equippedBySlot, data.equipment.inventory) &&
+      typeof data.tasks === 'object' &&
+      data.tasks !== null &&
+      (data.tasks.dailyDateKey === '' || /^\d{4}-\d{2}-\d{2}$/.test(data.tasks.dailyDateKey)) &&
+      this.hasValidTaskProgress(data.tasks.dailyProgress, 'daily') &&
+      this.hasValidTaskClaims(data.tasks.dailyClaimed, 'daily') &&
+      this.hasValidTaskProgress(data.tasks.achievementProgress, 'achievement') &&
+      this.hasValidTaskClaims(data.tasks.achievementClaimed, 'achievement') &&
       typeof data.claims === 'object' &&
       data.claims !== null &&
       !Array.isArray(data.claims) &&
@@ -318,6 +326,35 @@ export class SaveService {
         const template = EQUIPMENT_CONFIG.templates.find((entry) => entry.id === item?.templateId);
         return item !== undefined && template?.slot === slot;
       }) && new Set(equippedIds).size === equippedIds.length
+    );
+  }
+
+  private hasValidTaskProgress(value: unknown, category: TaskCategory): boolean {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+      return false;
+    }
+    const configs = new Map(
+      TASK_CONFIGS.filter((task) => task.category === category).map((task) => [task.id, task]),
+    );
+    return Object.entries(value).every(([taskId, progress]) => {
+      const config = configs.get(taskId);
+      return (
+        config !== undefined &&
+        this.isNonNegativeInteger(progress) &&
+        Number(progress) <= config.target
+      );
+    });
+  }
+
+  private hasValidTaskClaims(value: unknown, category: TaskCategory): boolean {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+      return false;
+    }
+    const validIds = new Set(
+      TASK_CONFIGS.filter((task) => task.category === category).map((task) => task.id),
+    );
+    return Object.entries(value).every(
+      ([taskId, claimed]) => validIds.has(taskId) && typeof claimed === 'boolean',
     );
   }
 
