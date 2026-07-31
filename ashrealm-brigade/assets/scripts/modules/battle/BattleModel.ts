@@ -1,5 +1,6 @@
 import { GAME_BALANCE } from '../../config/GameBalanceConfig';
 import { EconomyCalculator } from '../economy/EconomyCalculator';
+import { HeroCalculator } from '../hero/HeroCalculator';
 import { DamageCalculator } from './DamageCalculator';
 
 export type BattleState = 'fighting' | 'failed' | 'chapter-complete';
@@ -28,6 +29,7 @@ export interface BattleSnapshot {
 export class BattleModel {
   private readonly damageCalculator = new DamageCalculator();
   private readonly economyCalculator = new EconomyCalculator();
+  private readonly heroCalculator = new HeroCalculator();
   private stage: number;
   private monsterMaxHp: number;
   private monsterHp: number;
@@ -45,7 +47,7 @@ export class BattleModel {
     this.stage = this.toPositiveInteger(progress?.stage, 1);
     this.gold = this.toNonNegativeInteger(progress?.gold, 0);
     this.heroLevel = this.toPositiveInteger(progress?.heroLevel, 1);
-    this.heroDamage = this.economyCalculator.getHeroDamage(this.heroLevel);
+    this.heroDamage = this.heroCalculator.getAttack(this.heroLevel);
     this.enemyKind = this.economyCalculator.isBossStage(this.stage) ? 'boss' : 'normal';
     this.monsterMaxHp = this.economyCalculator.getMonsterHp(this.stage, this.enemyKind === 'boss');
     this.monsterHp = this.monsterMaxHp;
@@ -94,7 +96,7 @@ export class BattleModel {
 
     this.gold -= cost;
     this.heroLevel += 1;
-    this.heroDamage = this.economyCalculator.getHeroDamage(this.heroLevel);
+    this.heroDamage = this.heroCalculator.getAttack(this.heroLevel);
     this.markProgressChanged();
     return true;
   }
@@ -194,7 +196,7 @@ export class BattleModel {
   }
 
   private getUpgradeCost(): number {
-    return this.economyCalculator.getUpgradeCost(this.heroLevel);
+    return this.heroCalculator.getUpgradeCost(this.heroLevel);
   }
 
   private markProgressChanged(): void {

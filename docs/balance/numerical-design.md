@@ -8,11 +8,10 @@
 
 ## 2. 统一计算口径
 
-当前 MVP 参数集中定义在
-`ashrealm-brigade/assets/scripts/config/GameBalanceConfig.ts`。业务代码不得重复声明平衡常量。
+当前 MVP 的战斗与经济参数定义在 `GameBalanceConfig.ts`，英雄参数定义在 `HeroConfig.ts`；两者均位于 `ashrealm-brigade/assets/scripts/config/`。业务代码不得重复声明平衡常量。
 
 ```text
-英雄伤害(L) = baseDamage + (L - 1) × damagePerLevel
+英雄攻击(L) = baseAttack + (L - 1) × attackPerLevel
 升级费用(L→L+1) = floor(upgradeBaseCost × upgradeCostGrowth^(L - 1))
 普通怪生命(S) = floor(monsterBaseHp × monsterHpGrowth^(S - 1))
 普通怪金币(S) = floor(monsterBaseGold + S × monsterStageGoldFactor)
@@ -34,7 +33,7 @@
 
 每位英雄至少配置：基础攻击、基础生命、攻击速度、暴击、成长率、解锁条件、升级费用组和技能组。英雄差异优先来自攻击节奏与技能机制，避免只改变基础攻击。
 
-首章建议按关卡逐步解锁，保证玩家每 10～20 关获得一次新目标。具体解锁表在试玩前标记为 `TBD`。
+首轮解锁关卡如下，均为可调参数：剑士 1、法师 10、弓箭手 20、牧师 30、刺客 40、狂战士 50、元素使 60、圣骑士 70。主角剑士永久存在，其他英雄到达对应关卡后解锁。每位英雄的攻击、生命、攻速、暴击、攻击距离和升级费用独立配置，并由 `HeroConfigValidator` 校验。
 
 ## 5. 关卡与 Boss
 

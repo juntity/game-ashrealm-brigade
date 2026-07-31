@@ -8,12 +8,6 @@ export interface GameBalanceConfig {
     readonly bossHp: number;
     readonly bossDurationSeconds: number;
   };
-  readonly hero: {
-    readonly baseDamage: number;
-    readonly damagePerLevel: number;
-    readonly upgradeBaseCost: number;
-    readonly upgradeCostGrowth: number;
-  };
   readonly economy: {
     readonly monsterBaseGold: number;
     readonly monsterStageGoldFactor: number;
@@ -34,12 +28,6 @@ export const GAME_BALANCE: Readonly<GameBalanceConfig> = Object.freeze({
     bossInterval: 10,
     bossHp: 600,
     bossDurationSeconds: 30,
-  },
-  hero: {
-    baseDamage: 3,
-    damagePerLevel: 2,
-    upgradeBaseCost: 10,
-    upgradeCostGrowth: 1.35,
   },
   economy: {
     monsterBaseGold: 5,

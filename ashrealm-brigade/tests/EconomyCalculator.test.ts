@@ -4,10 +4,7 @@ import { EconomyCalculator } from '../assets/scripts/modules/economy/EconomyCalc
 describe('EconomyCalculator', () => {
   const calculator = new EconomyCalculator();
 
-  it('derives combat values from the shared balance configuration', () => {
-    expect(calculator.getHeroDamage(1)).toBe(3);
-    expect(calculator.getHeroDamage(4)).toBe(9);
-    expect(calculator.getUpgradeCost(1)).toBe(10);
+  it('derives monster and reward values from the shared balance configuration', () => {
     expect(calculator.getMonsterHp(1)).toBe(30);
     expect(calculator.getMonsterHp(10)).toBe(600);
     expect(calculator.getKillGold(1)).toBe(6);

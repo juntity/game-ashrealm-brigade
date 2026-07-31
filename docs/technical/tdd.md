@@ -64,7 +64,7 @@ UI/表现层 → 应用服务层 → 领域逻辑层
 
 ## 6. 配置表
 
-每张表必须包含稳定字符串 ID、`schemaVersion` 和明确引用。建议首批表：
+每张表必须包含稳定字符串 ID、`schemaVersion` 和明确引用。开发初期采用类型安全的 TypeScript 配置，内容量扩大后可机械转换为 JSON。英雄首表位于 `assets/scripts/config/HeroConfig.ts`，由 `HeroConfigValidator` 在测试阶段校验。建议完整配置表：
 
 `heroes.json`、`monsters.json`、`stages.json`、`skills.json`、`equipment-templates.json`、`affixes.json`、`economy.json`、`tasks.json`、`localization.json`。
 
