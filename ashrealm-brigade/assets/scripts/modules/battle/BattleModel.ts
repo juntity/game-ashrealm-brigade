@@ -2,6 +2,7 @@ import { GAME_BALANCE } from '../../config/GameBalanceConfig';
 import { EconomyCalculator } from '../economy/EconomyCalculator';
 import { HeroCalculator } from '../hero/HeroCalculator';
 import { HeroRoster } from '../hero/HeroRoster';
+import { ActiveSkillBar, SkillCastStatus, SkillSlotSnapshot } from '../skill/ActiveSkillBar';
 import { DamageCalculator } from './DamageCalculator';
 import { createDefaultSaveData, HeroSave } from '../../save/SaveData';
 
@@ -14,6 +15,7 @@ export interface BattleProgress {
   readonly gold: number;
   readonly heroLevel: number;
   readonly heroes: readonly HeroSave[];
+  readonly equippedSkillIds: readonly string[];
 }
 
 export interface BattleSnapshot {
@@ -31,6 +33,7 @@ export interface BattleSnapshot {
   readonly totalDps: number;
   readonly unlockedHeroCount: number;
   readonly deployedSupportCount: number;
+  readonly skillSlots: readonly SkillSlotSnapshot[];
   readonly upgradeCost: number;
 }
 
@@ -39,6 +42,7 @@ export class BattleModel {
   private readonly economyCalculator = new EconomyCalculator();
   private readonly heroCalculator = new HeroCalculator();
   private readonly heroRoster: HeroRoster;
+  private readonly skillBar: ActiveSkillBar;
   private stage: number;
   private highestStage: number;
   private monsterMaxHp: number;
@@ -71,6 +75,7 @@ export class BattleModel {
       };
     }
     this.heroRoster = new HeroRoster(initialHeroes);
+    this.skillBar = new ActiveSkillBar(progress?.equippedSkillIds ?? []);
     this.heroRoster.synchronizeUnlocks(this.highestStage);
     this.heroLevel = this.heroRoster.getMainHero().level;
     this.heroDamage = this.heroCalculator.getAttack(this.heroLevel);
@@ -94,6 +99,8 @@ export class BattleModel {
         return;
       }
     }
+
+    this.skillBar.tick(deltaTime);
 
     this.autoAttackElapsed += deltaTime;
 
@@ -148,6 +155,7 @@ export class BattleModel {
       totalDps: this.totalDps,
       unlockedHeroCount: this.heroRoster.getUnlockedCount(),
       deployedSupportCount: this.heroRoster.getDeployedSupportCount(),
+      skillSlots: this.skillBar.getSnapshot(this.highestStage),
       upgradeCost: this.getUpgradeCost(),
     };
   }
@@ -189,6 +197,7 @@ export class BattleModel {
       gold: this.gold,
       heroLevel: this.heroLevel,
       heroes: this.heroRoster.getHeroes(),
+      equippedSkillIds: this.skillBar.getEquippedSkillIds(),
     };
   }
 
@@ -199,6 +208,20 @@ export class BattleModel {
     this.totalDps = this.heroRoster.getTotalDps();
     this.markProgressChanged();
     return true;
+  }
+
+  public castSkill(slotIndex: number): SkillCastStatus {
+    if (this.state !== 'fighting' || this.isPaused) {
+      return 'locked';
+    }
+    const result = this.skillBar.cast(slotIndex, this.highestStage);
+    if (result.status !== 'cast' || result.skill === null) {
+      return result.status;
+    }
+
+    const damage = Math.max(1, Math.floor(this.totalDps * result.skill.damageMultiplier));
+    this.damageMonster(damage);
+    return 'cast';
   }
 
   public grantGold(amount: number): boolean {

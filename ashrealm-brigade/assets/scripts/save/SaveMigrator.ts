@@ -1,4 +1,5 @@
 import { HERO_CONFIG, MAIN_HERO_ID } from '../config/HeroConfig';
+import { SKILL_CONFIG } from '../config/SkillConfig';
 import { SAVE_SCHEMA_VERSION } from './SaveData';
 
 type SaveMigration = (data: Record<string, unknown>) => unknown;
@@ -46,6 +47,13 @@ const MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
       }),
     };
   },
+  2: (data) => ({
+    ...data,
+    schemaVersion: 3,
+    skills: {
+      equippedSkillIds: SKILL_CONFIG.activeSkills.map((skill) => skill.id),
+    },
+  }),
 };
 
 export class SaveMigrator {

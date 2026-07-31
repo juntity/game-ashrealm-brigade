@@ -1,5 +1,6 @@
 import { KeyValueStorage } from '../platform/PlatformAdapter';
 import { HERO_CONFIG, MAIN_HERO_ID } from '../config/HeroConfig';
+import { MAX_ACTIVE_SKILL_SLOTS, SKILL_CONFIG } from '../config/SkillConfig';
 import { createDefaultSaveData, SAVE_SCHEMA_VERSION, SaveData } from './SaveData';
 import { SaveMigrator } from './SaveMigrator';
 
@@ -192,6 +193,7 @@ export class SaveService {
           )
         : [],
     );
+    const validSkillIds = new Set(SKILL_CONFIG.activeSkills.map((skill) => skill.id));
     return (
       data.schemaVersion === SAVE_SCHEMA_VERSION &&
       this.isNonNegativeInteger(data.revision) &&
@@ -227,6 +229,14 @@ export class SaveService {
         (hero) => hero.heroId === MAIN_HERO_ID && hero.isUnlocked && hero.isDeployed,
       ) &&
       data.heroes.filter((hero) => hero.heroId !== MAIN_HERO_ID && hero.isDeployed).length <= 3 &&
+      typeof data.skills === 'object' &&
+      data.skills !== null &&
+      Array.isArray(data.skills.equippedSkillIds) &&
+      data.skills.equippedSkillIds.length <= MAX_ACTIVE_SKILL_SLOTS &&
+      new Set(data.skills.equippedSkillIds).size === data.skills.equippedSkillIds.length &&
+      data.skills.equippedSkillIds.every(
+        (skillId) => typeof skillId === 'string' && validSkillIds.has(skillId),
+      ) &&
       typeof data.claims === 'object' &&
       data.claims !== null &&
       !Array.isArray(data.claims) &&

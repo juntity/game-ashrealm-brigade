@@ -26,6 +26,9 @@ export class BattleScreen {
   private readonly retryButton: Node;
   private readonly pauseButton: Node;
   private readonly formationButton: Node;
+  private readonly skillButtons: Node[] = [];
+  private readonly skillLabels: Label[] = [];
+  private readonly skillHandlers: Array<() => void> = [];
 
   public constructor(
     parent: Node,
@@ -57,7 +60,8 @@ export class BattleScreen {
     this.formationLabel = this.createLabelNode(this.formationButton, '自动编队', 21);
     this.upgradeButton = this.createButton('UpgradeButton', 0, -400);
     this.upgradeLabel = this.createLabelNode(this.upgradeButton, '升级英雄', 29);
-    this.retryButton = this.createButton('RetryButton', 0, -505);
+    this.createSkillButtons();
+    this.retryButton = this.createButton('RetryButton', 0, -400);
     this.createLabelNode(this.retryButton, '重新挑战 Boss', 27);
 
     this.createLabel('TipLabel', 21, 0, -610).string = '点击魔物造成伤害 · 英雄每秒自动攻击';
@@ -82,6 +86,9 @@ export class BattleScreen {
     this.retryButton.off(Button.EventType.CLICK, this.onRetryClicked, this);
     this.pauseButton.off(Button.EventType.CLICK, this.onPauseClicked, this);
     this.formationButton.off(Button.EventType.CLICK, this.onFormationClicked, this);
+    this.skillButtons.forEach((button, index) => {
+      button.off(Button.EventType.CLICK, this.skillHandlers[index], this);
+    });
     this.node.destroy();
   }
 
@@ -200,6 +207,28 @@ export class BattleScreen {
     return node;
   }
 
+  private createSkillButtons(): void {
+    const positions = [-255, -85, 85, 255];
+    positions.forEach((x, index) => {
+      const button = this.createNode(`SkillButton${index + 1}`, 150, 90);
+      button.setPosition(x, -525);
+      const graphics = button.addComponent(Graphics);
+      graphics.fillColor = new Color(63, 74, 92, 255);
+      graphics.roundRect(-75, -45, 150, 90, 12);
+      graphics.fill();
+      const buttonComponent = button.addComponent(Button);
+      buttonComponent.transition = Button.Transition.SCALE;
+      buttonComponent.zoomScale = 0.95;
+      const label = this.createLabelNode(button, '技能槽', 18, 140);
+      const handler = (): void => this.onSkillClicked(index);
+      button.on(Button.EventType.CLICK, handler, this);
+      this.contentRoot.addChild(button);
+      this.skillButtons.push(button);
+      this.skillLabels.push(label);
+      this.skillHandlers.push(handler);
+    });
+  }
+
   private createLabel(name: string, fontSize: number, x: number, y: number): Label {
     const node = this.createNode(name, 690, 64);
     node.setPosition(x, y);
@@ -213,8 +242,8 @@ export class BattleScreen {
     return label;
   }
 
-  private createLabelNode(parent: Node, text: string, fontSize: number): Label {
-    const node = this.createNode(`${parent.name}Label`, 360, 80);
+  private createLabelNode(parent: Node, text: string, fontSize: number, width = 360): Label {
+    const node = this.createNode(`${parent.name}Label`, width, 80);
     const label = node.addComponent(Label);
     label.string = text;
     label.fontSize = fontSize;
@@ -264,10 +293,21 @@ export class BattleScreen {
       `主角 Lv.${snapshot.heroLevel} · 队伍 DPS ${snapshot.totalDps.toFixed(1)}` +
       ` · 支援 ${snapshot.deployedSupportCount}/3`;
     this.formationLabel.string = `自动编队 ${snapshot.unlockedHeroCount}/8`;
+    snapshot.skillSlots.forEach((slot, index) => {
+      const label = this.skillLabels[index];
+      if (!slot.isUnlocked) {
+        label.string = `${slot.name}\n第 ${slot.unlockStage ?? '-'} 关解锁`;
+      } else if (slot.cooldownRemaining > 0) {
+        label.string = `${slot.name}\n${Math.ceil(slot.cooldownRemaining)} 秒`;
+      } else {
+        label.string = `${slot.name}\n可释放`;
+      }
+    });
     this.upgradeLabel.string = `升级英雄  ${snapshot.upgradeCost} 金币`;
     this.pauseLabel.string = snapshot.isPaused ? '继续' : '暂停';
     this.pauseButton.active = snapshot.state === 'fighting';
     this.retryButton.active = snapshot.state === 'failed';
+    this.upgradeButton.active = snapshot.state !== 'failed';
 
     const ratio = snapshot.monsterHp / snapshot.monsterMaxHp;
     this.hpBar.clear();
@@ -308,6 +348,12 @@ export class BattleScreen {
 
   private onFormationClicked(): void {
     this.model.autoDeployStrongestSupports();
+    this.render(this.model.getSnapshot());
+    this.persistIfChanged();
+  }
+
+  private onSkillClicked(slotIndex: number): void {
+    this.model.castSkill(slotIndex);
     this.render(this.model.getSnapshot());
     this.persistIfChanged();
   }

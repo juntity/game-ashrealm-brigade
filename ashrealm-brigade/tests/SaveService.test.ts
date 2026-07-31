@@ -8,7 +8,7 @@ describe('SaveService', () => {
     const service = new SaveService(new MemoryStorage(), () => 1_000);
 
     expect(service.load()).toMatchObject({
-      schemaVersion: 2,
+      schemaVersion: 3,
       revision: 0,
       createdAt: 1_000,
       player: { gold: 0, diamonds: 0 },
@@ -97,7 +97,7 @@ describe('SaveService', () => {
     const migrated = new SaveService(storage, () => 3_000).load();
 
     expect(migrated).toMatchObject({
-      schemaVersion: 2,
+      schemaVersion: 3,
       revision: 4,
       player: { gold: 88, diamonds: 0 },
       progress: { stage: 9, highestStage: 9, chapter: 1 },
@@ -106,10 +106,10 @@ describe('SaveService', () => {
       ]),
       claims: {},
     });
-    expect(JSON.parse(storage.getItem('ashrealm.save.v1') ?? '{}').schemaVersion).toBe(2);
+    expect(JSON.parse(storage.getItem('ashrealm.save.v1') ?? '{}').schemaVersion).toBe(3);
   });
 
-  it('migrates version one to a complete version-two hero roster', () => {
+  it('migrates version one through the complete hero and skill schemas', () => {
     const storage = new MemoryStorage();
     storage.setItem(
       'ashrealm.save.v1',
@@ -128,7 +128,7 @@ describe('SaveService', () => {
 
     const migrated = new SaveService(storage, () => 3_000).load();
 
-    expect(migrated.schemaVersion).toBe(2);
+    expect(migrated.schemaVersion).toBe(3);
     expect(migrated.progress.highestStage).toBe(11);
     expect(migrated.heroes).toHaveLength(8);
     expect(migrated.heroes[0]).toMatchObject({
@@ -142,6 +142,30 @@ describe('SaveService', () => {
       isUnlocked: true,
       isDeployed: false,
     });
+    expect(migrated.skills.equippedSkillIds).toHaveLength(4);
+  });
+
+  it('migrates version two by adding the default active skill slots', () => {
+    const storage = new MemoryStorage();
+    const versionTwo: Record<string, unknown> = { ...createDefaultSaveData(1_000) };
+    delete versionTwo.skills;
+    storage.setItem(
+      'ashrealm.save.v1',
+      JSON.stringify({
+        ...versionTwo,
+        schemaVersion: 2,
+      }),
+    );
+
+    const migrated = new SaveService(storage, () => 2_000).load();
+
+    expect(migrated.schemaVersion).toBe(3);
+    expect(migrated.skills.equippedSkillIds).toEqual([
+      'skill_ember_slash',
+      'skill_meteor',
+      'skill_arrow_rain',
+      'skill_holy_judgment',
+    ]);
   });
 
   it('uses a default save when every stored candidate is corrupted', () => {
@@ -196,6 +220,25 @@ describe('SaveService', () => {
       service.save({
         ...initial,
         heroes: [null, ...initial.heroes.slice(1)] as unknown as typeof initial.heroes,
+      }),
+    ).toThrow('invalid SaveData');
+  });
+
+  it('rejects unknown or duplicate equipped skill ids', () => {
+    const storage = new MemoryStorage();
+    const service = new SaveService(storage, () => 1_000);
+    const initial = service.load();
+
+    expect(() =>
+      service.save({
+        ...initial,
+        skills: { equippedSkillIds: ['skill_unknown'] },
+      }),
+    ).toThrow('invalid SaveData');
+    expect(() =>
+      service.save({
+        ...initial,
+        skills: { equippedSkillIds: ['skill_ember_slash', 'skill_ember_slash'] },
       }),
     ).toThrow('invalid SaveData');
   });

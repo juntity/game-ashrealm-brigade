@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BattleModel } from '../assets/scripts/modules/battle/BattleModel';
+import { SKILL_CONFIG } from '../assets/scripts/config/SkillConfig';
 
 function clickUntilStage(model: BattleModel, targetStage: number): void {
   for (let index = 0; index < 20_000; index += 1) {
@@ -192,5 +193,34 @@ describe('BattleModel', () => {
       deployedSupportCount: 1,
     });
     expect(model.getSnapshot().totalDps).toBeGreaterThan(3);
+  });
+
+  it('casts an unlocked skill, applies damage and enforces cooldown', () => {
+    const model = new BattleModel({
+      equippedSkillIds: SKILL_CONFIG.activeSkills.map((skill) => skill.id),
+    });
+
+    expect(model.castSkill(0)).toBe('cast');
+    expect(model.getSnapshot().monsterHp).toBe(21);
+    expect(model.castSkill(0)).toBe('cooldown');
+    model.pause();
+    expect(model.castSkill(0)).toBe('locked');
+    expect(model.getSnapshot().monsterHp).toBe(21);
+  });
+
+  it('freezes skill cooldown while battle is paused', () => {
+    const model = new BattleModel({
+      equippedSkillIds: SKILL_CONFIG.activeSkills.map((skill) => skill.id),
+    });
+
+    model.castSkill(0);
+    model.tick(2);
+    expect(model.getSnapshot().skillSlots[0].cooldownRemaining).toBe(6);
+    model.pause();
+    model.tick(20);
+    expect(model.getSnapshot().skillSlots[0].cooldownRemaining).toBe(6);
+    model.resume();
+    model.tick(1);
+    expect(model.getSnapshot().skillSlots[0].cooldownRemaining).toBe(5);
   });
 });

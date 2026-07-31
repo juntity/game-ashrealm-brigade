@@ -132,7 +132,22 @@ function createHero(
       type: isMain ? 'default' : 'stage',
       stage: unlockStage,
     },
-    activeSkillIds: [],
+    activeSkillIds: getInitialActiveSkillIds(role),
     passiveSkillIds: [],
   };
+}
+
+function getInitialActiveSkillIds(role: HeroRole): readonly string[] {
+  switch (role) {
+    case 'swordsman':
+      return ['skill_ember_slash'];
+    case 'mage':
+      return ['skill_meteor'];
+    case 'archer':
+      return ['skill_arrow_rain'];
+    case 'paladin':
+      return ['skill_holy_judgment'];
+    default:
+      return [];
+  }
 }

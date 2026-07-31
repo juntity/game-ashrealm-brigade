@@ -208,6 +208,7 @@ export class Bootstrap extends Component {
         gold: saveData.player.gold,
         heroLevel: saveData.heroes[0]?.level ?? 1,
         heroes: saveData.heroes,
+        equippedSkillIds: saveData.skills.equippedSkillIds,
       },
       (progress) => this.saveProgress(progress),
     );
@@ -274,6 +275,9 @@ export class Bootstrap extends Component {
         highestStage: progress.highestStage,
       },
       heroes: [...progress.heroes],
+      skills: {
+        equippedSkillIds: [...progress.equippedSkillIds],
+      },
     });
   }
 

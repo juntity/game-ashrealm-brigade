@@ -1,6 +1,7 @@
 import { HERO_CONFIG, MAIN_HERO_ID } from '../config/HeroConfig';
+import { SKILL_CONFIG } from '../config/SkillConfig';
 
-export const SAVE_SCHEMA_VERSION = 2;
+export const SAVE_SCHEMA_VERSION = 3;
 
 export interface SaveData {
   readonly schemaVersion: number;
@@ -11,6 +12,7 @@ export interface SaveData {
   readonly player: PlayerSave;
   readonly progress: ProgressSave;
   readonly heroes: HeroSave[];
+  readonly skills: SkillSave;
   readonly claims: Record<string, boolean>;
 }
 
@@ -30,6 +32,10 @@ export interface HeroSave {
   readonly level: number;
   readonly isUnlocked: boolean;
   readonly isDeployed: boolean;
+}
+
+export interface SkillSave {
+  readonly equippedSkillIds: string[];
 }
 
 export function createDefaultSaveData(now: number): SaveData {
@@ -54,6 +60,9 @@ export function createDefaultSaveData(now: number): SaveData {
       isUnlocked: hero.id === MAIN_HERO_ID,
       isDeployed: hero.id === MAIN_HERO_ID,
     })),
+    skills: {
+      equippedSkillIds: SKILL_CONFIG.activeSkills.map((skill) => skill.id),
+    },
     claims: {},
   };
 }
