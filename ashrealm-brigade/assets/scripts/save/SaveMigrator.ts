@@ -62,6 +62,26 @@ const MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
       equippedBySlot: {},
     },
   }),
+  4: (data) => {
+    const player = asRecord(data.player);
+    const equipment = asRecord(data.equipment);
+    const inventory = Array.isArray(equipment?.inventory) ? equipment.inventory : [];
+    return {
+      ...data,
+      schemaVersion: 5,
+      player: {
+        ...player,
+        equipmentEssence: 0,
+      },
+      equipment: {
+        ...equipment,
+        inventory: inventory.map((item) => ({
+          ...asRecord(item),
+          starLevel: 0,
+        })),
+      },
+    };
+  },
 };
 
 export class SaveMigrator {

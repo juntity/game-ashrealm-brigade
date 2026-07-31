@@ -5,6 +5,7 @@ import {
   EquipmentTemplateConfig,
 } from '../../config/EquipmentConfig';
 import { EquipmentCollectionSave, EquipmentSave } from '../../save/SaveData';
+import { EQUIPMENT_PROGRESSION_CONFIG } from '../../config/EquipmentProgressionConfig';
 
 export type EquipResult = 'equipped' | 'not-found' | 'already-equipped';
 
@@ -89,7 +90,10 @@ export class EquipmentInventory {
     const stats = mutableEmptyStats();
     stats[template.mainStatType] +=
       (template.baseMainStat + (item.level - 1) * template.mainStatPerLevel) *
-      rarity.statMultiplier;
+      rarity.statMultiplier *
+      (1 +
+        item.enhanceLevel * EQUIPMENT_PROGRESSION_CONFIG.enhanceMainStatBonusPerLevel +
+        item.starLevel * EQUIPMENT_PROGRESSION_CONFIG.starMainStatBonusPerLevel);
     for (const roll of item.affixes) {
       const affix = EQUIPMENT_CONFIG.affixes.find((entry) => entry.id === roll.affixId);
       if (affix === undefined) {

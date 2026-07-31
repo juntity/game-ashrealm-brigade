@@ -217,6 +217,7 @@ export class SaveService {
       data.player !== null &&
       this.isNonNegativeInteger(data.player.gold) &&
       this.isNonNegativeInteger(data.player.diamonds) &&
+      this.isNonNegativeInteger(data.player.equipmentEssence) &&
       typeof data.progress === 'object' &&
       data.progress !== null &&
       this.isPositiveInteger(data.progress.stage) &&
@@ -265,6 +266,7 @@ export class SaveService {
           validRarityIds.has(item.rarity) &&
           this.isPositiveInteger(item.level) &&
           this.isNonNegativeInteger(item.enhanceLevel) &&
+          this.isNonNegativeInteger(item.starLevel) &&
           typeof item.protected === 'boolean' &&
           Array.isArray(item.affixes) &&
           new Set(item.affixes.map((affix) => affix.affixId)).size === item.affixes.length &&

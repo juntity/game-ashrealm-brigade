@@ -8,6 +8,7 @@ const BASIC_WEAPON: EquipmentSave = {
   rarity: 'common',
   level: 1,
   enhanceLevel: 0,
+  starLevel: 0,
   affixes: [],
   protected: false,
 };
@@ -33,6 +34,7 @@ describe('EquipmentInventory', () => {
       rarity: 'epic',
       level: 2,
       enhanceLevel: 0,
+      starLevel: 0,
       affixes: [{ affixId: 'affix_attack_flat', value: 12 }],
       protected: true,
     };

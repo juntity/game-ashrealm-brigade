@@ -94,6 +94,7 @@ function item(
     rarity,
     level,
     enhanceLevel: 0,
+    starLevel: 0,
     affixes: [],
     protected: protectedValue,
   };

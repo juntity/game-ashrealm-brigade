@@ -15,6 +15,7 @@ describe('EquipmentGenerator', () => {
       rarity: 'common',
       level: 1,
       enhanceLevel: 0,
+      starLevel: 0,
       affixes: [],
       protected: false,
     });

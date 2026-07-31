@@ -2,7 +2,7 @@ import { HERO_CONFIG, MAIN_HERO_ID } from '../config/HeroConfig';
 import { SKILL_CONFIG } from '../config/SkillConfig';
 import { EquipmentRarity, EquipmentSlot } from '../config/EquipmentConfig';
 
-export const SAVE_SCHEMA_VERSION = 4;
+export const SAVE_SCHEMA_VERSION = 5;
 
 export interface SaveData {
   readonly schemaVersion: number;
@@ -21,6 +21,7 @@ export interface SaveData {
 export interface PlayerSave {
   readonly gold: number;
   readonly diamonds: number;
+  readonly equipmentEssence: number;
 }
 
 export interface ProgressSave {
@@ -51,6 +52,7 @@ export interface EquipmentSave {
   readonly rarity: EquipmentRarity;
   readonly level: number;
   readonly enhanceLevel: number;
+  readonly starLevel: number;
   readonly affixes: EquipmentAffixSave[];
   readonly protected: boolean;
 }
@@ -70,6 +72,7 @@ export function createDefaultSaveData(now: number): SaveData {
     player: {
       gold: 0,
       diamonds: 0,
+      equipmentEssence: 0,
     },
     progress: {
       stage: 1,

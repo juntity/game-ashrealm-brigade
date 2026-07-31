@@ -8,7 +8,7 @@ describe('SaveService', () => {
     const service = new SaveService(new MemoryStorage(), () => 1_000);
 
     expect(service.load()).toMatchObject({
-      schemaVersion: 4,
+      schemaVersion: 5,
       revision: 0,
       createdAt: 1_000,
       player: { gold: 0, diamonds: 0 },
@@ -66,7 +66,7 @@ describe('SaveService', () => {
     const temporary = {
       ...createDefaultSaveData(1_000),
       revision: 3,
-      player: { gold: 77, diamonds: 0 },
+      player: { gold: 77, diamonds: 0, equipmentEssence: 0 },
     };
     storage.setItem('ashrealm.save.v1', 'broken');
     storage.setItem('ashrealm.save.v1.tmp', JSON.stringify(temporary));
@@ -97,7 +97,7 @@ describe('SaveService', () => {
     const migrated = new SaveService(storage, () => 3_000).load();
 
     expect(migrated).toMatchObject({
-      schemaVersion: 4,
+      schemaVersion: 5,
       revision: 4,
       player: { gold: 88, diamonds: 0 },
       progress: { stage: 9, highestStage: 9, chapter: 1 },
@@ -106,7 +106,7 @@ describe('SaveService', () => {
       ]),
       claims: {},
     });
-    expect(JSON.parse(storage.getItem('ashrealm.save.v1') ?? '{}').schemaVersion).toBe(4);
+    expect(JSON.parse(storage.getItem('ashrealm.save.v1') ?? '{}').schemaVersion).toBe(5);
   });
 
   it('migrates version one through the complete hero and skill schemas', () => {
@@ -128,7 +128,7 @@ describe('SaveService', () => {
 
     const migrated = new SaveService(storage, () => 3_000).load();
 
-    expect(migrated.schemaVersion).toBe(4);
+    expect(migrated.schemaVersion).toBe(5);
     expect(migrated.progress.highestStage).toBe(11);
     expect(migrated.heroes).toHaveLength(8);
     expect(migrated.heroes[0]).toMatchObject({
@@ -159,7 +159,7 @@ describe('SaveService', () => {
 
     const migrated = new SaveService(storage, () => 2_000).load();
 
-    expect(migrated.schemaVersion).toBe(4);
+    expect(migrated.schemaVersion).toBe(5);
     expect(migrated.skills.equippedSkillIds).toEqual([
       'skill_ember_slash',
       'skill_meteor',
@@ -182,8 +182,39 @@ describe('SaveService', () => {
 
     const migrated = new SaveService(storage, () => 2_000).load();
 
-    expect(migrated.schemaVersion).toBe(4);
+    expect(migrated.schemaVersion).toBe(5);
     expect(migrated.equipment).toEqual({ inventory: [], equippedBySlot: {} });
+  });
+
+  it('migrates version four by adding equipment essence and star levels', () => {
+    const storage = new MemoryStorage();
+    const versionFour: Record<string, unknown> = { ...createDefaultSaveData(1_000) };
+    versionFour.player = { gold: 50, diamonds: 2 };
+    versionFour.equipment = {
+      inventory: [
+        {
+          instanceId: 'legacy_weapon',
+          templateId: 'equipment_ash_blade',
+          rarity: 'rare',
+          level: 2,
+          enhanceLevel: 3,
+          affixes: [],
+          protected: false,
+        },
+      ],
+      equippedBySlot: { weapon: 'legacy_weapon' },
+    };
+    storage.setItem('ashrealm.save.v1', JSON.stringify({ ...versionFour, schemaVersion: 4 }));
+
+    const migrated = new SaveService(storage, () => 2_000).load();
+
+    expect(migrated.schemaVersion).toBe(5);
+    expect(migrated.player.equipmentEssence).toBe(0);
+    expect(migrated.equipment.inventory[0]).toMatchObject({
+      instanceId: 'legacy_weapon',
+      enhanceLevel: 3,
+      starLevel: 0,
+    });
   });
 
   it('uses a default save when every stored candidate is corrupted', () => {
@@ -271,6 +302,7 @@ describe('SaveService', () => {
       rarity: 'rare' as const,
       level: 2,
       enhanceLevel: 0,
+      starLevel: 0,
       affixes: [{ affixId: 'affix_attack_flat', value: 5 }],
       protected: false,
     };

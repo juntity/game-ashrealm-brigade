@@ -36,6 +36,7 @@ export class EquipmentGenerator {
       rarity: rarity.id,
       level: Math.floor((stage - 1) / this.dropConfig.equipmentLevelStageInterval) + 1,
       enhanceLevel: 0,
+      starLevel: 0,
       affixes: affixConfigs.map((affix) => this.rollAffix(affix)),
       protected: rarity.autoProtect,
     };

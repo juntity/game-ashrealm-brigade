@@ -70,7 +70,7 @@ UI/表现层 → 应用服务层 → 领域逻辑层
 
 构建前校验：ID 唯一、引用存在、枚举合法、数值范围合理、100 关连续、5 个 Boss 可到达。配置加载失败应阻止进入游戏并输出具体表名和字段路径。
 
-装备首表位于 `assets/scripts/config/EquipmentConfig.ts`，包含 7 个部位、6 档品质、8 类词条和 7 个灰盒模板。`EquipmentConfigValidator` 校验部位唯一、品质档位、史诗以上自动保护、词条数上限、主属性约束及模板—词条引用兼容性。掉落权重集中在 `EquipmentDropConfig.ts`；`EquipmentGenerator` 使用可注入随机源生成物品实例与唯一词条，`EquipmentInventory` 负责穿戴、卸下、属性汇总和同部位比较。`EquipmentBag` 提供部位/品质筛选、品质/等级/综合属性稳定排序和手动保护；综合评分权重位于 `EquipmentBagConfig.ts`。批量操作必须先预览并排除保护或穿戴中的装备。模板配置与物品实例保持分离。
+装备首表位于 `assets/scripts/config/EquipmentConfig.ts`，包含 7 个部位、6 档品质、8 类词条和 7 个灰盒模板。`EquipmentConfigValidator` 校验部位唯一、品质档位、史诗以上自动保护、词条数上限、主属性约束及模板—词条引用兼容性。掉落权重集中在 `EquipmentDropConfig.ts`；`EquipmentGenerator` 使用可注入随机源生成物品实例与唯一词条，`EquipmentInventory` 负责穿戴、卸下、属性汇总和同部位比较。`EquipmentBag` 提供部位/品质筛选、品质/等级/综合属性稳定排序和手动保护；综合评分权重位于 `EquipmentBagConfig.ts`。`EquipmentWorkshop` 负责必定成功的强化、消耗装备精华的升星、出售、分解和一键穿戴，成长费用与收益集中在 `EquipmentProgressionConfig.ts`。批量销毁必须先预览并排除保护或穿戴中的装备。模板配置与物品实例保持分离。
 
 ## 7. 存档设计
 
