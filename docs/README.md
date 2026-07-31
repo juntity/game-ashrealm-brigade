@@ -21,6 +21,7 @@
 | [美术资源清单](./production/art-assets.md) | 资源规格、数量、命名与交付标准 | V0.1，草案 |
 | [AI 开发手册](./development/ai-handbook.md) | AI 编码边界、Prompt 和验收流程 | V0.1，草案 |
 | [MVP 研发计划](./development/roadmap.md) | 里程碑、任务依赖和完成定义 | V0.1，草案 |
+| [开发 TODO](./development/TODO.md) | 当前进度、下一步和可执行任务 | 持续更新 |
 
 ## 决策优先级
 

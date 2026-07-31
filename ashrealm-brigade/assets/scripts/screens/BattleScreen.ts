@@ -1,0 +1,189 @@
+import { Button, Color, Graphics, Label, Layers, Node, UITransform } from 'cc';
+import { BattleModel, BattleSnapshot } from '../modules/battle/BattleModel';
+
+const WIDTH = 750;
+const HEIGHT = 1334;
+
+export class BattleScreen {
+  public readonly node = new Node('BattleScreen');
+
+  private readonly model = new BattleModel();
+  private readonly stageLabel: Label;
+  private readonly goldLabel: Label;
+  private readonly hpLabel: Label;
+  private readonly heroLabel: Label;
+  private readonly upgradeLabel: Label;
+  private readonly statusLabel: Label;
+  private readonly hpBar: Graphics;
+  private readonly monsterButton: Node;
+  private readonly upgradeButton: Node;
+  private readonly retryButton: Node;
+
+  public constructor(parent: Node) {
+    this.node.layer = Layers.Enum.UI_2D;
+    this.node.addComponent(UITransform).setContentSize(WIDTH, HEIGHT);
+    parent.addChild(this.node);
+
+    this.createBackground();
+    this.stageLabel = this.createLabel('StageLabel', 30, 0, 565);
+    this.goldLabel = this.createLabel('GoldLabel', 28, 0, 510);
+
+    this.statusLabel = this.createLabel('EnemyTitle', 25, 0, 350);
+    this.monsterButton = this.createMonster();
+    this.hpBar = this.createHpBar();
+    this.hpLabel = this.createLabel('HpLabel', 23, 0, 70);
+
+    this.heroLabel = this.createLabel('HeroLabel', 27, 0, -245);
+    this.upgradeButton = this.createButton('UpgradeButton', 0, -400);
+    this.upgradeLabel = this.createLabelNode(this.upgradeButton, '升级英雄', 29);
+    this.retryButton = this.createButton('RetryButton', 0, -505);
+    this.createLabelNode(this.retryButton, '重新挑战 Boss', 27);
+
+    this.createLabel('TipLabel', 21, 0, -610).string = '点击魔物造成伤害 · 英雄每秒自动攻击';
+
+    this.monsterButton.on(Button.EventType.CLICK, this.onMonsterClicked, this);
+    this.upgradeButton.on(Button.EventType.CLICK, this.onUpgradeClicked, this);
+    this.retryButton.on(Button.EventType.CLICK, this.onRetryClicked, this);
+    this.render(this.model.getSnapshot());
+  }
+
+  public update(deltaTime: number): void {
+    this.model.tick(deltaTime);
+    this.render(this.model.getSnapshot());
+  }
+
+  public destroy(): void {
+    this.monsterButton.off(Button.EventType.CLICK, this.onMonsterClicked, this);
+    this.upgradeButton.off(Button.EventType.CLICK, this.onUpgradeClicked, this);
+    this.retryButton.off(Button.EventType.CLICK, this.onRetryClicked, this);
+    this.node.destroy();
+  }
+
+  private createBackground(): void {
+    const background = this.createNode('Background', WIDTH, HEIGHT);
+    const graphics = background.addComponent(Graphics);
+    graphics.fillColor = new Color(17, 21, 30, 255);
+    graphics.rect(-WIDTH / 2, -HEIGHT / 2, WIDTH, HEIGHT);
+    graphics.fill();
+    this.node.addChild(background);
+  }
+
+  private createMonster(): Node {
+    const monster = this.createNode('Monster', 330, 330);
+    monster.setPosition(0, 230);
+
+    const graphics = monster.addComponent(Graphics);
+    graphics.fillColor = new Color(100, 48, 55, 255);
+    graphics.circle(0, 0, 150);
+    graphics.fill();
+    graphics.fillColor = new Color(210, 120, 79, 255);
+    graphics.circle(-48, 35, 18);
+    graphics.circle(48, 35, 18);
+    graphics.fill();
+
+    const button = monster.addComponent(Button);
+    button.transition = Button.Transition.SCALE;
+    button.zoomScale = 0.94;
+    this.node.addChild(monster);
+    return monster;
+  }
+
+  private createHpBar(): Graphics {
+    const bar = this.createNode('HpBar', 560, 38);
+    bar.setPosition(0, 115);
+    const graphics = bar.addComponent(Graphics);
+    this.node.addChild(bar);
+    return graphics;
+  }
+
+  private createButton(name: string, x: number, y: number): Node {
+    const node = this.createNode(name, 390, 100);
+    node.setPosition(x, y);
+
+    const graphics = node.addComponent(Graphics);
+    graphics.fillColor = new Color(184, 133, 54, 255);
+    graphics.roundRect(-195, -50, 390, 100, 16);
+    graphics.fill();
+
+    const button = node.addComponent(Button);
+    button.transition = Button.Transition.SCALE;
+    button.zoomScale = 0.96;
+    this.node.addChild(node);
+    return node;
+  }
+
+  private createLabel(name: string, fontSize: number, x: number, y: number): Label {
+    const node = this.createNode(name, 690, 64);
+    node.setPosition(x, y);
+    const label = node.addComponent(Label);
+    label.fontSize = fontSize;
+    label.lineHeight = fontSize + 8;
+    label.color = new Color(232, 232, 226, 255);
+    label.horizontalAlign = Label.HorizontalAlign.CENTER;
+    label.verticalAlign = Label.VerticalAlign.CENTER;
+    this.node.addChild(node);
+    return label;
+  }
+
+  private createLabelNode(parent: Node, text: string, fontSize: number): Label {
+    const node = this.createNode(`${parent.name}Label`, 360, 80);
+    const label = node.addComponent(Label);
+    label.string = text;
+    label.fontSize = fontSize;
+    label.lineHeight = fontSize + 8;
+    label.color = new Color(25, 28, 34, 255);
+    label.horizontalAlign = Label.HorizontalAlign.CENTER;
+    label.verticalAlign = Label.VerticalAlign.CENTER;
+    parent.addChild(node);
+    return label;
+  }
+
+  private createNode(name: string, width: number, height: number): Node {
+    const node = new Node(name);
+    node.layer = Layers.Enum.UI_2D;
+    node.addComponent(UITransform).setContentSize(width, height);
+    return node;
+  }
+
+  private render(snapshot: BattleSnapshot): void {
+    this.stageLabel.string = `关卡 ${snapshot.stage}`;
+    if (snapshot.state === 'failed') {
+      this.statusLabel.string = '挑战失败：Boss 已狂暴';
+    } else if (snapshot.state === 'chapter-complete') {
+      this.statusLabel.string = '首章灰盒完成！';
+    } else if (snapshot.enemyKind === 'boss') {
+      this.statusLabel.string = `Boss · ${Math.ceil(snapshot.bossSecondsRemaining ?? 0)} 秒`;
+    } else {
+      this.statusLabel.string = '烬境魔物';
+    }
+    this.goldLabel.string = `金币 ${snapshot.gold}`;
+    this.hpLabel.string = `${snapshot.monsterHp} / ${snapshot.monsterMaxHp}`;
+    this.heroLabel.string = `英雄 Lv.${snapshot.heroLevel}  ·  每秒伤害 ${snapshot.heroDamage}`;
+    this.upgradeLabel.string = `升级英雄  ${snapshot.upgradeCost} 金币`;
+    this.retryButton.active = snapshot.state === 'failed';
+
+    const ratio = snapshot.monsterHp / snapshot.monsterMaxHp;
+    this.hpBar.clear();
+    this.hpBar.fillColor = new Color(54, 57, 66, 255);
+    this.hpBar.roundRect(-280, -19, 560, 38, 12);
+    this.hpBar.fill();
+    this.hpBar.fillColor = new Color(185, 62, 69, 255);
+    this.hpBar.roundRect(-276, -15, 552 * ratio, 30, 9);
+    this.hpBar.fill();
+  }
+
+  private onMonsterClicked(): void {
+    this.model.clickAttack();
+    this.render(this.model.getSnapshot());
+  }
+
+  private onUpgradeClicked(): void {
+    this.model.upgradeHero();
+    this.render(this.model.getSnapshot());
+  }
+
+  private onRetryClicked(): void {
+    this.model.retryBoss();
+    this.render(this.model.getSnapshot());
+  }
+}

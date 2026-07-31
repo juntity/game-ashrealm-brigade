@@ -1,7 +1,24 @@
 {
-  "name": "烬境旅团",
+  "name": "ashrealm-brigade",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint assets/scripts tests",
+    "format": "prettier --write \"assets/scripts/**/*.ts\" \"tests/**/*.ts\"",
+    "format:check": "prettier --check \"assets/scripts/**/*.ts\" \"tests/**/*.ts\""
+  },
   "uuid": "66290959-bac5-47bf-9774-3487fca1fad7",
   "creator": {
     "version": "3.8.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.8.0",
+    "prettier": "^3.9.6",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.65.0",
+    "vitest": "^4.1.10"
   }
 }
