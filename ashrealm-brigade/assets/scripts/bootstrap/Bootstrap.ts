@@ -49,6 +49,8 @@ export class Bootstrap extends Component {
   private developerMessage = '';
   private clearConfirmationPending = false;
   private battlePausedByLifecycle = false;
+  private battlePausedByNavigation = false;
+  private gameStarted = false;
 
   protected start(): void {
     this.screenAdapter.configureView();
@@ -208,15 +210,16 @@ export class Bootstrap extends Component {
 
   private showGamePage(page: 'battle' | EquipmentPageMode): void {
     const saveData = this.requireSaveData();
-    this.battleScreen?.destroy();
-    this.battleScreen = null;
     this.equipmentScreen?.destroy();
     this.equipmentScreen = null;
     this.navigationNode?.destroy();
     this.navigationNode = null;
-    this.node.removeAllChildren();
-    this.contentRoot = null;
-    if (page === 'battle') {
+    if (!this.gameStarted) {
+      this.node.removeAllChildren();
+      this.contentRoot = null;
+      this.gameStarted = true;
+    }
+    if (this.battleScreen === null) {
       this.battleScreen = new BattleScreen(
         this.node,
         {
@@ -229,7 +232,16 @@ export class Bootstrap extends Component {
         },
         (progress) => this.saveProgress(progress),
       );
+    }
+    if (page === 'battle') {
+      this.battleScreen.node.active = true;
+      if (this.battlePausedByNavigation) {
+        this.battleScreen.resume();
+        this.battlePausedByNavigation = false;
+      }
     } else {
+      this.battlePausedByNavigation ||= this.battleScreen.pause();
+      this.battleScreen.node.active = false;
       this.equipmentScreen = new EquipmentManagementScreen(this.node, page, saveData, (next) =>
         this.saveManagementData(next),
       );
@@ -325,6 +337,7 @@ export class Bootstrap extends Component {
 
   private saveManagementData(next: SaveData): SaveData {
     this.saveData = this.saveService.save(next);
+    this.battleScreen?.synchronizeGold(this.saveData.player.gold);
     return this.saveData;
   }
 

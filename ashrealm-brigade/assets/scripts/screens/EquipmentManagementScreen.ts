@@ -3,12 +3,13 @@ import {
   EQUIPMENT_CONFIG,
   EquipmentRarity,
   EquipmentSlot,
+  EquipmentStatType,
   EquipmentTemplateConfig,
 } from '../config/EquipmentConfig';
 import { EquipmentBag, EquipmentSortKey } from '../modules/bag/EquipmentBag';
 import { EquipmentInventory } from '../modules/equip/EquipmentInventory';
 import { EquipmentWorkshop } from '../modules/equip/EquipmentWorkshop';
-import { SaveData } from '../save/SaveData';
+import { EquipmentSave, SaveData } from '../save/SaveData';
 import { DESIGN_HEIGHT, DESIGN_WIDTH, ScreenAdapter } from '../ui/ScreenAdapter';
 
 export type EquipmentPageMode = 'equipment' | 'bag';
@@ -104,7 +105,7 @@ export class EquipmentManagementScreen {
           ? `${SLOT_NAMES[slot]}  ·  未穿戴`
           : `${SLOT_NAMES[slot]}  ·  ${template.name}  ${RARITY_NAMES[item.rarity]} Lv.${
               item.level
-            }  +${item.enhanceLevel}  ${item.starLevel}★`;
+            }  +${item.enhanceLevel}  ${item.starLevel}★\n${formatItemAttributes(item)}`;
       this.createListButton(
         `Slot_${slot}`,
         text,
@@ -116,6 +117,9 @@ export class EquipmentManagementScreen {
           this.render();
         },
         item?.instanceId === this.selectedInstanceId,
+        680,
+        80,
+        17,
       );
     });
 
@@ -175,6 +179,16 @@ export class EquipmentManagementScreen {
       this.createLabel('暂无装备，返回战斗击败魔物后可获得掉落', 24, 0, 160, 680);
     } else if (entries.length > 8) {
       this.createLabel(`当前显示前 8 件，共 ${entries.length} 件`, 17, 0, -285, 680);
+    }
+
+    const selected =
+      this.selectedInstanceId === null
+        ? undefined
+        : this.saveData.equipment.inventory.find(
+            (item) => item.instanceId === this.selectedInstanceId,
+          );
+    if (selected !== undefined) {
+      this.createLabel(formatItemAttributes(selected), 18, 0, -285, 690);
     }
 
     this.createActionButton('Equip', '穿戴', -270, -390, () => this.equipSelected(), 155);
@@ -479,6 +493,32 @@ function progressionMessage(result: string): string {
 
 function formatPercent(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
+}
+
+const STAT_NAMES: Readonly<Record<EquipmentStatType, string>> = {
+  'attack-flat': '攻击',
+  'attack-multiplier': '攻击加成',
+  'critical-rate': '暴击率',
+  'critical-damage': '暴击伤害',
+  'attack-speed': '攻击速度',
+  'boss-damage': 'Boss伤害',
+  'gold-multiplier': '金币收益',
+  'offline-multiplier': '离线收益',
+};
+
+function formatItemAttributes(item: EquipmentSave): string {
+  const stats = new EquipmentInventory({
+    inventory: [item],
+    equippedBySlot: {},
+  }).calculateItemStats(item);
+  return (Object.entries(stats) as Array<[EquipmentStatType, number]>)
+    .filter(([, value]) => value > 0)
+    .map(([stat, value]) =>
+      stat === 'attack-flat'
+        ? `${STAT_NAMES[stat]} +${value.toFixed(1)}`
+        : `${STAT_NAMES[stat]} +${formatPercent(value)}`,
+    )
+    .join(' · ');
 }
 
 function cloneSave(save: SaveData): SaveData {

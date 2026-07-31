@@ -237,6 +237,10 @@ export class BattleModel {
     return true;
   }
 
+  public synchronizeGold(gold: number): void {
+    this.gold = this.toNonNegativeInteger(gold, this.gold);
+  }
+
   public getProgressRevision(): number {
     return this.progressRevision;
   }

@@ -105,6 +105,11 @@ export class BattleScreen {
     this.offlineRewardLabel.color = new Color(242, 207, 128, 255);
   }
 
+  public synchronizeGold(gold: number): void {
+    this.model.synchronizeGold(gold);
+    this.render(this.model.getSnapshot());
+  }
+
   public pause(): boolean {
     const changed = this.model.pause();
     if (changed) {
