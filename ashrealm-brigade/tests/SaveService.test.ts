@@ -153,4 +153,39 @@ describe('SaveService', () => {
       }),
     ).toThrow('invalid SaveData');
   });
+
+  it('reports save slot health without modifying storage', () => {
+    const storage = new MemoryStorage();
+    const service = new SaveService(storage, () => 1_000);
+    const initial = service.load();
+    service.save(initial);
+    storage.setItem('ashrealm.save.v1.tmp', 'broken-temp');
+
+    expect(service.inspect()).toEqual({
+      main: { present: true, valid: true },
+      temporary: { present: true, valid: false },
+      backup: { present: false, valid: false },
+      hasCorruptSnapshot: false,
+    });
+    expect(storage.getItem('ashrealm.save.v1.tmp')).toBe('broken-temp');
+  });
+
+  it('clears every save slot and resets in-memory progress', () => {
+    const storage = new MemoryStorage();
+    const service = new SaveService(storage, () => 1_000);
+    const initial = service.load();
+    service.save({ ...initial, player: { ...initial.player, gold: 99 } });
+    storage.setItem('ashrealm.save.v1.tmp', 'temp');
+    storage.setItem('ashrealm.save.corrupt.latest', 'corrupt');
+
+    const cleared = service.clearAll();
+
+    expect(cleared).toEqual(createDefaultSaveData(1_000));
+    expect(service.inspect()).toEqual({
+      main: { present: false, valid: false },
+      temporary: { present: false, valid: false },
+      backup: { present: false, valid: false },
+      hasCorruptSnapshot: false,
+    });
+  });
 });

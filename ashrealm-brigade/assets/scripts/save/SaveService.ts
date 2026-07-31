@@ -7,6 +7,18 @@ const TEMP_KEY = 'ashrealm.save.v1.tmp';
 const BACKUP_KEY = 'ashrealm.save.v1.backup';
 const CORRUPT_KEY = 'ashrealm.save.corrupt.latest';
 
+export interface SaveSlotDiagnostic {
+  readonly present: boolean;
+  readonly valid: boolean;
+}
+
+export interface SaveDiagnostics {
+  readonly main: SaveSlotDiagnostic;
+  readonly temporary: SaveSlotDiagnostic;
+  readonly backup: SaveSlotDiagnostic;
+  readonly hasCorruptSnapshot: boolean;
+}
+
 export class SaveService {
   private current: SaveData;
   private readonly migrator = new SaveMigrator();
@@ -90,6 +102,24 @@ export class SaveService {
     return this.clone(saved);
   }
 
+  public inspect(): SaveDiagnostics {
+    return {
+      main: this.inspectSlot(SAVE_KEY),
+      temporary: this.inspectSlot(TEMP_KEY),
+      backup: this.inspectSlot(BACKUP_KEY),
+      hasCorruptSnapshot: this.storage.getItem(CORRUPT_KEY) !== null,
+    };
+  }
+
+  public clearAll(): SaveData {
+    this.storage.removeItem(SAVE_KEY);
+    this.storage.removeItem(TEMP_KEY);
+    this.storage.removeItem(BACKUP_KEY);
+    this.storage.removeItem(CORRUPT_KEY);
+    this.current = createDefaultSaveData(this.now());
+    return this.clone(this.current);
+  }
+
   private readValid(key: string): SaveData | null {
     const serialized = this.storage.getItem(key);
     if (serialized === null) {
@@ -103,6 +133,14 @@ export class SaveService {
     } catch {
       return null;
     }
+  }
+
+  private inspectSlot(key: string): SaveSlotDiagnostic {
+    const present = this.storage.getItem(key) !== null;
+    return {
+      present,
+      valid: present && this.readValid(key) !== null,
+    };
   }
 
   private persistMigratedData(key: string, data: SaveData): void {

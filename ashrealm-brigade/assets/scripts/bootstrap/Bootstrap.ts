@@ -17,7 +17,7 @@ import { EconomyCalculator } from '../modules/economy/EconomyCalculator';
 import { GAME_BALANCE } from '../config/GameBalanceConfig';
 import { CocosPlatformAdapter } from '../platform/CocosPlatformAdapter';
 import { SaveData } from '../save/SaveData';
-import { SaveService } from '../save/SaveService';
+import { SaveDiagnostics, SaveService, SaveSlotDiagnostic } from '../save/SaveService';
 
 const { ccclass } = _decorator;
 
@@ -39,6 +39,8 @@ export class Bootstrap extends Component {
   };
   private removeHideListener: (() => void) | null = null;
   private removeShowListener: (() => void) | null = null;
+  private developerMessage = '';
+  private clearConfirmationPending = false;
 
   protected start(): void {
     this.saveData = this.saveService.load();
@@ -66,6 +68,21 @@ export class Bootstrap extends Component {
       );
     }
     this.createStartButton();
+    this.createDeveloperButton('InspectSaveButton', '检查存档', -145, this.onInspectSave);
+    this.createDeveloperButton(
+      'ClearSaveButton',
+      this.clearConfirmationPending ? '确认清档' : '清除存档',
+      145,
+      this.onClearSave,
+    );
+    if (this.developerMessage.length > 0) {
+      this.createLabel(
+        this.developerMessage,
+        18,
+        new Color(165, 174, 190, 255),
+        new Vec3(0, -390, 0),
+      );
+    }
     this.createLabel('开发版本 0.1.0', 20, new Color(122, 130, 145, 255), new Vec3(0, -570, 0));
   }
 
@@ -114,6 +131,32 @@ export class Bootstrap extends Component {
     this.node.addChild(buttonNode);
   }
 
+  private createDeveloperButton(name: string, text: string, x: number, callback: () => void): void {
+    const buttonNode = this.createUiNode(name, 250, 72);
+    buttonNode.setPosition(x, -275, 0);
+
+    const graphics = buttonNode.addComponent(Graphics);
+    graphics.fillColor = new Color(50, 58, 72, 255);
+    graphics.roundRect(-125, -36, 250, 72, 12);
+    graphics.fill();
+
+    const button = buttonNode.addComponent(Button);
+    button.transition = Button.Transition.SCALE;
+    button.zoomScale = 0.96;
+    buttonNode.on(Button.EventType.CLICK, callback, this);
+
+    const labelNode = this.createUiNode(`${name}Label`, 230, 60);
+    const label = labelNode.addComponent(Label);
+    label.string = text;
+    label.fontSize = 24;
+    label.lineHeight = 32;
+    label.color = new Color(220, 223, 229, 255);
+    label.horizontalAlign = Label.HorizontalAlign.CENTER;
+    label.verticalAlign = Label.VerticalAlign.CENTER;
+    buttonNode.addChild(labelNode);
+    this.node.addChild(buttonNode);
+  }
+
   private createLabel(text: string, fontSize: number, color: Color, position: Vec3): void {
     const labelNode = this.createUiNode(text, 680, 90);
     labelNode.setPosition(position);
@@ -148,6 +191,38 @@ export class Bootstrap extends Component {
       },
       (progress) => this.saveProgress(progress),
     );
+  }
+
+  private onInspectSave(): void {
+    this.clearConfirmationPending = false;
+    const saveData = this.requireSaveData();
+    const diagnostics = this.saveService.inspect();
+    const heroLevel = saveData.heroes[0]?.level ?? 1;
+    this.developerMessage =
+      `V${saveData.schemaVersion} R${saveData.revision} · 关卡 ${saveData.progress.stage}` +
+      ` · 英雄 Lv.${heroLevel} · 金币 ${saveData.player.gold}\n${this.formatDiagnostics(
+        diagnostics,
+      )}`;
+    this.buildLaunchScreen();
+  }
+
+  private onClearSave(): void {
+    if (!this.clearConfirmationPending) {
+      this.clearConfirmationPending = true;
+      this.developerMessage = '再次点击“确认清档”将删除本机全部进度';
+      this.buildLaunchScreen();
+      return;
+    }
+
+    this.saveData = this.saveService.clearAll();
+    this.offlineReward = {
+      elapsedSeconds: 0,
+      rewardedSeconds: 0,
+      gold: 0,
+    };
+    this.clearConfirmationPending = false;
+    this.developerMessage = '存档已清除，当前进度已恢复为初始状态';
+    this.buildLaunchScreen();
   }
 
   protected update(deltaTime: number): void {
@@ -250,5 +325,21 @@ export class Bootstrap extends Component {
     const hours = Math.floor(totalMinutes / 60);
     const minutes = totalMinutes % 60;
     return hours > 0 ? `离线 ${hours} 小时 ${minutes} 分钟` : `离线 ${minutes} 分钟`;
+  }
+
+  private formatDiagnostics(diagnostics: SaveDiagnostics): string {
+    return [
+      `主档${this.formatSlot(diagnostics.main)}`,
+      `临时${this.formatSlot(diagnostics.temporary)}`,
+      `备份${this.formatSlot(diagnostics.backup)}`,
+      `损坏快照${diagnostics.hasCorruptSnapshot ? '有' : '无'}`,
+    ].join(' · ');
+  }
+
+  private formatSlot(slot: SaveSlotDiagnostic): string {
+    if (!slot.present) {
+      return '空';
+    }
+    return slot.valid ? '有效' : '损坏';
   }
 }
