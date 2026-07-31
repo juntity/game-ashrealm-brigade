@@ -49,9 +49,29 @@ describe('BattleModel', () => {
     expect(model.retryBoss()).toBe(true);
     expect(model.getSnapshot()).toMatchObject({
       state: 'fighting',
-      monsterHp: 420,
+      monsterHp: 600,
       bossSecondsRemaining: 30,
     });
+  });
+
+  it('counts down visibly and stops dealing damage after the boss timer expires', () => {
+    const model = new BattleModel();
+    clickUntilStage(model, 10);
+
+    model.tick(29);
+    expect(model.getSnapshot()).toMatchObject({
+      state: 'fighting',
+      bossSecondsRemaining: 1,
+    });
+
+    model.tick(1);
+    const failedSnapshot = model.getSnapshot();
+    expect(failedSnapshot.state).toBe('failed');
+    expect(failedSnapshot.bossSecondsRemaining).toBe(0);
+
+    model.tick(10);
+    model.clickAttack();
+    expect(model.getSnapshot().monsterHp).toBe(failedSnapshot.monsterHp);
   });
 
   it('marks the chapter complete after defeating the boss', () => {

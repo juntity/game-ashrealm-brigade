@@ -118,7 +118,7 @@ export class BattleModel {
     this.stage += 1;
     this.enemyKind = this.stage === 10 ? 'boss' : 'normal';
     this.monsterMaxHp =
-      this.enemyKind === 'boss' ? 420 : Math.floor(30 * Math.pow(1.16, this.stage - 1));
+      this.enemyKind === 'boss' ? 600 : Math.floor(30 * Math.pow(1.16, this.stage - 1));
     this.monsterHp = this.monsterMaxHp;
     this.bossSecondsRemaining = this.enemyKind === 'boss' ? 30 : null;
   }

@@ -28,7 +28,7 @@ export class BattleScreen {
     this.stageLabel = this.createLabel('StageLabel', 30, 0, 565);
     this.goldLabel = this.createLabel('GoldLabel', 28, 0, 510);
 
-    this.statusLabel = this.createLabel('EnemyTitle', 25, 0, 350);
+    this.statusLabel = this.createLabel('EnemyTitle', 28, 0, 430);
     this.monsterButton = this.createMonster();
     this.hpBar = this.createHpBar();
     this.hpLabel = this.createLabel('HpLabel', 23, 0, 70);
@@ -152,7 +152,9 @@ export class BattleScreen {
     } else if (snapshot.state === 'chapter-complete') {
       this.statusLabel.string = '首章灰盒完成！';
     } else if (snapshot.enemyKind === 'boss') {
-      this.statusLabel.string = `Boss · ${Math.ceil(snapshot.bossSecondsRemaining ?? 0)} 秒`;
+      this.statusLabel.string = `章节 Boss · 剩余 ${Math.ceil(
+        snapshot.bossSecondsRemaining ?? 0,
+      )} 秒`;
     } else {
       this.statusLabel.string = '烬境魔物';
     }
