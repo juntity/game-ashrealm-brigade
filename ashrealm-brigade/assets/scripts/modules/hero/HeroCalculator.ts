@@ -6,11 +6,6 @@ export class HeroCalculator {
     return hero.baseAttack + (normalizedLevel - 1) * hero.attackPerLevel;
   }
 
-  public getMaxHp(level: number, hero: HeroConfig = MAIN_HERO_CONFIG): number {
-    const normalizedLevel = Math.max(1, Math.floor(level));
-    return hero.baseHp + (normalizedLevel - 1) * hero.hpPerLevel;
-  }
-
   public getUpgradeCost(level: number, hero: HeroConfig = MAIN_HERO_CONFIG): number {
     const normalizedLevel = Math.max(1, Math.floor(level));
     return Math.floor(hero.upgradeBaseCost * Math.pow(hero.upgradeCostGrowth, normalizedLevel - 1));

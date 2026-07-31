@@ -57,6 +57,6 @@ describe('HeroCalculator', () => {
   it('calculates another hero from its own configuration', () => {
     const mage = HERO_CONFIG.heroes[1];
     expect(calculator.getAttack(3, mage)).toBe(11);
-    expect(calculator.getMaxHp(3, mage)).toBe(95);
+    expect(calculator.getUpgradeCost(1, mage)).toBe(40);
   });
 });

@@ -35,8 +35,6 @@ export class HeroConfigValidator {
 
       this.requirePositive(errors, hero.id, 'baseAttack', hero.baseAttack);
       this.requirePositive(errors, hero.id, 'attackPerLevel', hero.attackPerLevel);
-      this.requirePositive(errors, hero.id, 'baseHp', hero.baseHp);
-      this.requirePositive(errors, hero.id, 'hpPerLevel', hero.hpPerLevel);
       this.requirePositive(errors, hero.id, 'attackIntervalSeconds', hero.attackIntervalSeconds);
       this.requirePositive(errors, hero.id, 'criticalDamage', hero.criticalDamage);
       this.requirePositive(errors, hero.id, 'attackRange', hero.attackRange);

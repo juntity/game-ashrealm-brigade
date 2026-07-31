@@ -23,8 +23,6 @@ export interface HeroConfig {
   readonly isMain: boolean;
   readonly baseAttack: number;
   readonly attackPerLevel: number;
-  readonly baseHp: number;
-  readonly hpPerLevel: number;
   readonly attackIntervalSeconds: number;
   readonly criticalRate: number;
   readonly criticalDamage: number;
@@ -46,38 +44,12 @@ export const MAIN_HERO_ID = 'hero_main';
 export const HERO_CONFIG: Readonly<HeroConfigTable> = {
   schemaVersion: 1,
   heroes: [
-    createHero('hero_main', '剑士', 'swordsman', 'physical', true, 3, 2, 120, 18, 1, 0.05, 1),
-    createHero('hero_mage', '法师', 'mage', 'magical', false, 5, 3, 75, 10, 1.4, 0.05, 10),
-    createHero('hero_archer', '弓箭手', 'archer', 'physical', false, 3, 2, 85, 11, 0.75, 0.08, 20),
-    createHero('hero_priest', '牧师', 'priest', 'holy', false, 2, 1, 95, 14, 1.2, 0.03, 30),
-    createHero(
-      'hero_assassin',
-      '刺客',
-      'assassin',
-      'physical',
-      false,
-      4,
-      2,
-      80,
-      10,
-      0.65,
-      0.15,
-      40,
-    ),
-    createHero(
-      'hero_berserker',
-      '狂战士',
-      'berserker',
-      'physical',
-      false,
-      6,
-      4,
-      145,
-      22,
-      1.6,
-      0.08,
-      50,
-    ),
+    createHero('hero_main', '剑士', 'swordsman', 'physical', true, 3, 2, 1, 0.05, 1),
+    createHero('hero_mage', '法师', 'mage', 'magical', false, 5, 3, 1.4, 0.05, 10),
+    createHero('hero_archer', '弓箭手', 'archer', 'physical', false, 3, 2, 0.75, 0.08, 20),
+    createHero('hero_priest', '牧师', 'priest', 'holy', false, 2, 1, 1.2, 0.03, 30),
+    createHero('hero_assassin', '刺客', 'assassin', 'physical', false, 4, 2, 0.65, 0.15, 40),
+    createHero('hero_berserker', '狂战士', 'berserker', 'physical', false, 6, 4, 1.6, 0.08, 50),
     createHero(
       'hero_elementalist',
       '元素使',
@@ -86,13 +58,11 @@ export const HERO_CONFIG: Readonly<HeroConfigTable> = {
       false,
       7,
       4,
-      70,
-      9,
       1.5,
       0.06,
       60,
     ),
-    createHero('hero_paladin', '圣骑士', 'paladin', 'holy', false, 5, 3, 180, 26, 1.3, 0.05, 70),
+    createHero('hero_paladin', '圣骑士', 'paladin', 'holy', false, 5, 3, 1.3, 0.05, 70),
   ],
 };
 
@@ -106,8 +76,6 @@ function createHero(
   isMain: boolean,
   baseAttack: number,
   attackPerLevel: number,
-  baseHp: number,
-  hpPerLevel: number,
   attackIntervalSeconds: number,
   criticalRate: number,
   unlockStage: number,
@@ -120,8 +88,6 @@ function createHero(
     isMain,
     baseAttack,
     attackPerLevel,
-    baseHp,
-    hpPerLevel,
     attackIntervalSeconds,
     criticalRate,
     criticalDamage: 1.5,
