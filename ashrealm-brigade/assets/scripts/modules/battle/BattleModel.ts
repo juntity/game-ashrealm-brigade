@@ -46,7 +46,7 @@ export class BattleModel {
   private readonly damageCalculator = new DamageCalculator();
   private readonly economyCalculator = new EconomyCalculator();
   private readonly heroCalculator = new HeroCalculator();
-  private readonly heroRoster: HeroRoster;
+  private heroRoster: HeroRoster;
   private readonly skillBar: ActiveSkillBar;
   private readonly equipmentCombatCalculator = new EquipmentCombatCalculator();
   private equipment: EquipmentCollectionSave;
@@ -59,6 +59,8 @@ export class BattleModel {
   private heroLevel: number;
   private heroDamage: number;
   private totalDps: number;
+  private autoAttackDamage = 0;
+  private autoAttackIntervalSeconds = GAME_BALANCE.battle.autoAttackIntervalSeconds;
   private autoAttackElapsed = 0;
   private state: BattleState = 'fighting';
   private isPaused = false;
@@ -117,11 +119,9 @@ export class BattleModel {
 
     this.autoAttackElapsed += deltaTime;
 
-    while (this.autoAttackElapsed >= GAME_BALANCE.battle.autoAttackIntervalSeconds) {
-      this.autoAttackElapsed -= GAME_BALANCE.battle.autoAttackIntervalSeconds;
-      this.damageMonster(
-        Math.max(1, Math.floor(this.totalDps * GAME_BALANCE.battle.autoAttackIntervalSeconds)),
-      );
+    while (this.autoAttackElapsed >= this.autoAttackIntervalSeconds) {
+      this.autoAttackElapsed -= this.autoAttackIntervalSeconds;
+      this.damageMonster(Math.max(1, Math.floor(this.autoAttackDamage)));
     }
   }
 
@@ -259,6 +259,13 @@ export class BattleModel {
     this.refreshHeroStats();
   }
 
+  public synchronizeHeroes(heroes: readonly HeroSave[]): void {
+    this.heroRoster = new HeroRoster(heroes);
+    this.heroRoster.synchronizeUnlocks(this.highestStage);
+    this.heroLevel = this.heroRoster.getMainHero().level;
+    this.refreshHeroStats();
+  }
+
   public getProgressRevision(): number {
     return this.progressRevision;
   }
@@ -310,9 +317,13 @@ export class BattleModel {
       this.heroRoster.getTotalDps(),
       this.equipmentStats,
       this.enemyKind === 'boss',
+      GAME_BALANCE.battle.autoAttackIntervalSeconds,
+      GAME_BALANCE.battle.maxAttackSpeedBonus,
     );
     this.heroDamage = result.mainAttack;
     this.totalDps = result.totalDps;
+    this.autoAttackDamage = result.autoAttackDamage;
+    this.autoAttackIntervalSeconds = result.autoAttackIntervalSeconds;
   }
 
   private getKillGold(isBoss: boolean): number {

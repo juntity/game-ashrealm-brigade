@@ -50,7 +50,7 @@ UI/表现层 → 应用服务层 → 领域逻辑层
 
 模块之间通过接口、命令或领域事件通信。禁止从一个 UI 组件直接修改另一个模块的数据。
 
-当前灰盒由 `Bootstrap` 统一管理战斗、装备、背包导航。`StageEquipmentDropper` 根据存档关卡与最新关卡之间的差值，为每个已通关关卡生成一次装备掉落；`EquipmentManagementScreen` 以 `equipment` / `bag` 两种模式渲染装备槽、列表和操作。切换页面时从最新存档重建页面，避免金币、背包或穿戴状态不同步。
+当前灰盒由 `Bootstrap` 统一管理战斗、英雄、装备、背包和任务导航。`StageEquipmentDropper` 根据存档关卡与最新关卡之间的差值，为每个已通关关卡执行一次装备掉落判定；`EquipmentManagementScreen` 以 `equipment` / `bag` 两种模式渲染装备槽、列表和操作，`HeroScreen` 负责英雄升级、编队和技能摘要。非战斗页打开时保留并持续更新同一个 `BattleModel`，每次持久进度变化都同步当前页面，避免旧页面覆盖金币、背包、任务或英雄状态。
 
 任务配置位于 `TaskConfig.ts`，每日任务与永久成就共用事件类型。`TaskTracker` 负责封顶累计、跨天清空每日进度、保留成就，以及幂等奖励领取；奖励直接生成新的 `PlayerSave`，不允许负数扣款。`Bootstrap` 比较保存前后的战斗和装备数据，将击杀、通关、英雄升级、装备强化与穿戴转换为任务事件。任务数据从存档 Schema v6 起持久化。
 
@@ -77,6 +77,8 @@ UI/表现层 → 应用服务层 → 领域逻辑层
 装备首表位于 `assets/scripts/config/EquipmentConfig.ts`，包含 7 个部位、6 档品质、8 类词条和 7 个灰盒模板。`EquipmentConfigValidator` 校验部位唯一、品质档位、史诗以上自动保护、词条数上限、主属性约束及模板—词条引用兼容性。掉落权重集中在 `EquipmentDropConfig.ts`；`EquipmentGenerator` 使用可注入随机源生成物品实例与唯一词条，`EquipmentInventory` 负责穿戴、卸下、属性汇总和同部位比较。`EquipmentBag` 提供部位/品质筛选、品质/等级/综合属性稳定排序和手动保护；综合评分权重位于 `EquipmentBagConfig.ts`。`EquipmentWorkshop` 负责必定成功的强化、消耗装备精华的升星、出售、分解和一键穿戴，成长费用与收益集中在 `EquipmentProgressionConfig.ts`。批量销毁必须先预览并排除保护或穿戴中的装备。模板配置与物品实例保持分离。
 
 `EquipmentCombatCalculator` 将已穿戴装备的固定攻击、攻击加成、暴击率、暴击伤害、攻击速度和 Boss 伤害汇总到战斗攻击与 DPS；金币收益和离线收益分别接入击杀金币与离线结算。装备变更由 `Bootstrap` 同步给保留中的 `BattleModel`，只刷新属性，不重建敌人或重置当前生命。
+
+攻击速度采用真实时钟：装备攻速将自动攻击间隔除以 `1 + 攻速加成`，不改变单次自动攻击伤害；攻速加成上限为 200%，最低间隔为基础间隔的三分之一。UI 动画与伤害表现应使用相同的攻击间隔，不得只修改显示 DPS。
 
 ## 7. 存档设计
 

@@ -207,6 +207,33 @@ describe('BattleModel', () => {
     expect(model.exportProgress().equipment.equippedBySlot.weapon).toBe('battle_weapon');
   });
 
+  it('uses attack speed to trigger real attacks sooner', () => {
+    const normal = new BattleModel();
+    const fast = new BattleModel({
+      equipment: {
+        inventory: [
+          {
+            instanceId: 'speed_boots',
+            templateId: 'equipment_wind_boots',
+            rarity: 'rare',
+            level: 1,
+            enhanceLevel: 0,
+            starLevel: 0,
+            affixes: [{ affixId: 'affix_attack_speed', value: 0.5 }],
+            protected: false,
+          },
+        ],
+        equippedBySlot: { boots: 'speed_boots' },
+      },
+    });
+
+    normal.tick(0.7);
+    fast.tick(0.7);
+
+    expect(normal.getSnapshot().monsterHp).toBe(30);
+    expect(fast.getSnapshot().monsterHp).toBeLessThan(30);
+  });
+
   it('unlocks support heroes and aggregates deployed team DPS', () => {
     const model = new BattleModel({ stage: 10, highestStage: 10 });
 

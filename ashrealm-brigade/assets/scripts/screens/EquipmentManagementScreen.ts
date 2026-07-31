@@ -64,6 +64,11 @@ export class EquipmentManagementScreen {
     this.node.destroy();
   }
 
+  public synchronizeSave(save: SaveData): void {
+    this.saveData = cloneSave(save);
+    this.render();
+  }
+
   private render(): void {
     this.contentRoot.destroyAllChildren();
     this.createLabel(this.mode === 'equipment' ? '装备' : '背包', 40, 0, 590, 680);

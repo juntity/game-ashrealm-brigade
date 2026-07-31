@@ -31,6 +31,11 @@ export class TaskScreen {
     this.node.destroy();
   }
 
+  public synchronizeSave(save: SaveData): void {
+    this.saveData = cloneSave(save);
+    this.render();
+  }
+
   private render(): void {
     this.contentRoot.destroyAllChildren();
     this.createLabel('任务', 40, 590, new Color(232, 232, 226, 255));

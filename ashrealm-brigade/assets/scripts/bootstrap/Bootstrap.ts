@@ -26,8 +26,9 @@ import { StageEquipmentDropper } from '../modules/equip/StageEquipmentDropper';
 import { TaskScreen } from '../screens/TaskScreen';
 import { TaskTracker } from '../modules/task/TaskTracker';
 import { EquipmentInventory } from '../modules/equip/EquipmentInventory';
+import { HeroScreen } from '../screens/HeroScreen';
 
-type GamePage = 'battle' | EquipmentPageMode | 'tasks';
+type GamePage = 'battle' | 'heroes' | EquipmentPageMode | 'tasks';
 
 const { ccclass } = _decorator;
 
@@ -36,6 +37,7 @@ export class Bootstrap extends Component {
   private battleScreen: BattleScreen | null = null;
   private equipmentScreen: EquipmentManagementScreen | null = null;
   private taskScreen: TaskScreen | null = null;
+  private heroScreen: HeroScreen | null = null;
   private navigationNode: Node | null = null;
   private readonly platform = new CocosPlatformAdapter();
   private readonly saveService = new SaveService(this.platform.storage, () => this.platform.now());
@@ -55,7 +57,6 @@ export class Bootstrap extends Component {
   private developerMessage = '';
   private clearConfirmationPending = false;
   private battlePausedByLifecycle = false;
-  private battlePausedByNavigation = false;
   private gameStarted = false;
 
   protected start(): void {
@@ -220,6 +221,8 @@ export class Bootstrap extends Component {
     this.equipmentScreen = null;
     this.taskScreen?.destroy();
     this.taskScreen = null;
+    this.heroScreen?.destroy();
+    this.heroScreen = null;
     this.navigationNode?.destroy();
     this.navigationNode = null;
     if (!this.gameStarted) {
@@ -244,18 +247,17 @@ export class Bootstrap extends Component {
     }
     if (page === 'battle') {
       this.battleScreen.node.active = true;
-      if (this.battlePausedByNavigation) {
-        this.battleScreen.resume();
-        this.battlePausedByNavigation = false;
-      }
+    } else if (page === 'heroes') {
+      this.battleScreen.node.active = false;
+      this.heroScreen = new HeroScreen(this.node, saveData, (next) =>
+        this.saveManagementData(next),
+      );
     } else if (page === 'equipment' || page === 'bag') {
-      this.battlePausedByNavigation ||= this.battleScreen.pause();
       this.battleScreen.node.active = false;
       this.equipmentScreen = new EquipmentManagementScreen(this.node, page, saveData, (next) =>
         this.saveManagementData(next),
       );
     } else {
-      this.battlePausedByNavigation ||= this.battleScreen.pause();
       this.battleScreen.node.active = false;
       this.taskScreen = new TaskScreen(
         this.node,
@@ -312,6 +314,8 @@ export class Bootstrap extends Component {
     this.equipmentScreen = null;
     this.taskScreen?.destroy();
     this.taskScreen = null;
+    this.heroScreen?.destroy();
+    this.heroScreen = null;
     this.navigationNode?.destroy();
     this.navigationNode = null;
     this.removeHideListener?.();
@@ -366,6 +370,7 @@ export class Bootstrap extends Component {
     if (latestDropName !== null) {
       this.battleScreen?.showEquipmentDrop(latestDropName);
     }
+    this.synchronizeManagementScreens();
   }
 
   private saveManagementData(next: SaveData): SaveData {
@@ -386,10 +391,24 @@ export class Bootstrap extends Component {
     ).length;
     taskTracker.record('equipment-enhance', nextEnhanceTotal - previousEnhanceTotal);
     taskTracker.record('equipment-equip', equippedChanges);
+    const heroUpgrades = next.heroes.reduce((total, hero) => {
+      const previousLevel =
+        current.heroes.find((entry) => entry.heroId === hero.heroId)?.level ?? 1;
+      return total + Math.max(0, hero.level - previousLevel);
+    }, 0);
+    taskTracker.record('hero-upgrade', heroUpgrades);
     this.saveData = this.saveService.save({ ...next, tasks: taskTracker.toSave() });
     this.battleScreen?.synchronizeGold(this.saveData.player.gold);
     this.battleScreen?.synchronizeEquipment(this.saveData.equipment);
+    this.battleScreen?.synchronizeHeroes(this.saveData.heroes);
     return this.saveData;
+  }
+
+  private synchronizeManagementScreens(): void {
+    const saveData = this.requireSaveData();
+    this.equipmentScreen?.synchronizeSave(saveData);
+    this.taskScreen?.synchronizeSave(saveData);
+    this.heroScreen?.synchronizeSave(saveData);
   }
 
   private buildNavigation(activePage: GamePage): void {
@@ -404,22 +423,23 @@ export class Bootstrap extends Component {
       label: string;
       x: number;
     }> = [
-      { id: 'battle', label: '战斗', x: -275 },
-      { id: 'equipment', label: '装备', x: -92 },
-      { id: 'bag', label: '背包', x: 92 },
-      { id: 'tasks', label: '任务', x: 275 },
+      { id: 'battle', label: '战斗', x: -292 },
+      { id: 'heroes', label: '英雄', x: -146 },
+      { id: 'equipment', label: '装备', x: 0 },
+      { id: 'bag', label: '背包', x: 146 },
+      { id: 'tasks', label: '任务', x: 292 },
     ];
     for (const page of pages) {
-      const buttonNode = this.createUiNode(`Nav_${page.id}`, 170, 70);
+      const buttonNode = this.createUiNode(`Nav_${page.id}`, 136, 70);
       buttonNode.setPosition(page.x, 0);
       const graphics = buttonNode.addComponent(Graphics);
       graphics.fillColor =
         page.id === activePage ? new Color(184, 133, 54, 255) : new Color(50, 58, 72, 255);
-      graphics.roundRect(-82, -30, 164, 60, 10);
+      graphics.roundRect(-66, -30, 132, 60, 10);
       graphics.fill();
       buttonNode.addComponent(Button).transition = Button.Transition.SCALE;
       buttonNode.on(Button.EventType.CLICK, () => this.showGamePage(page.id), this);
-      const labelNode = this.createUiNode(`NavLabel_${page.id}`, 155, 55);
+      const labelNode = this.createUiNode(`NavLabel_${page.id}`, 125, 55);
       const label = labelNode.addComponent(Label);
       label.string = page.label;
       label.fontSize = 24;
