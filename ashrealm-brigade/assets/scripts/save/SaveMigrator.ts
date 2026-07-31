@@ -93,6 +93,14 @@ const MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
       achievementClaimed: {},
     },
   }),
+  6: (data) => ({
+    ...data,
+    schemaVersion: 7,
+    equipmentDropPity: {
+      normalMisses: 0,
+      bossesSinceMythic: 0,
+    },
+  }),
 };
 
 export class SaveMigrator {

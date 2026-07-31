@@ -14,6 +14,8 @@ export type EquipmentIdFactory = () => string;
 export interface EquipmentDropContext {
   readonly stage: number;
   readonly isBoss: boolean;
+  readonly minimumRarity?: EquipmentRarity;
+  readonly mythicChance?: number;
 }
 
 export class EquipmentGenerator {
@@ -26,7 +28,12 @@ export class EquipmentGenerator {
   public generate(context: EquipmentDropContext): EquipmentSave {
     const stage = Math.max(1, Math.floor(context.stage));
     const template = this.pick(EQUIPMENT_CONFIG.templates);
-    const rarity = this.pickRarity(stage, context.isBoss);
+    const rarity = this.pickRarityWithRules(
+      stage,
+      context.isBoss,
+      context.minimumRarity === undefined ? 0 : rarityRank(context.minimumRarity),
+      context.mythicChance,
+    );
     const affixCount = this.randomInteger(rarity.minAffixes, rarity.maxAffixes);
     const affixConfigs = this.pickUniqueAffixes(template, affixCount);
 
@@ -42,8 +49,21 @@ export class EquipmentGenerator {
     };
   }
 
-  private pickRarity(stage: number, isBoss: boolean): RarityConfig {
-    const eligible = this.dropConfig.rarityWeights.filter((entry) => entry.unlockStage <= stage);
+  private pickRarityWithRules(
+    stage: number,
+    isBoss: boolean,
+    minimumRank: number,
+    mythicChance?: number,
+  ): RarityConfig {
+    if (mythicChance !== undefined && this.normalizedRandom() < mythicChance) {
+      return this.requireRarity('mythic');
+    }
+    const eligible = this.dropConfig.rarityWeights.filter(
+      (entry) =>
+        entry.unlockStage <= stage &&
+        rarityRank(entry.rarity) >= minimumRank &&
+        (mythicChance === undefined || entry.rarity !== 'mythic'),
+    );
     const weighted = eligible.map((entry) => ({
       ...entry,
       effectiveWeight:
@@ -59,11 +79,7 @@ export class EquipmentGenerator {
         roll -= entry.effectiveWeight;
         return roll < 0;
       }) ?? weighted[weighted.length - 1];
-    const rarity = EQUIPMENT_CONFIG.rarities.find((entry) => entry.id === selected.rarity);
-    if (rarity === undefined) {
-      throw new Error(`Unknown equipment rarity: ${selected.rarity}.`);
-    }
-    return rarity;
+    return this.requireRarity(selected.rarity);
   }
 
   private pickUniqueAffixes(
@@ -105,6 +121,14 @@ export class EquipmentGenerator {
 
   private normalizedRandom(): number {
     return Math.min(1 - Number.EPSILON, Math.max(0, this.random()));
+  }
+
+  private requireRarity(rarity: EquipmentRarity): RarityConfig {
+    const config = EQUIPMENT_CONFIG.rarities.find((entry) => entry.id === rarity);
+    if (config === undefined) {
+      throw new Error(`Unknown equipment rarity: ${rarity}.`);
+    }
+    return config;
   }
 }
 

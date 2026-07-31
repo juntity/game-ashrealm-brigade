@@ -324,6 +324,7 @@ export class Bootstrap extends Component {
       current.equipment,
       current.progress.stage,
       progress.stage,
+      current.equipmentDropPity,
     );
     const latestDrop = dropResult.drops[dropResult.drops.length - 1];
     const latestDropName =
@@ -358,6 +359,7 @@ export class Bootstrap extends Component {
       },
       equipment: dropResult.equipment,
       tasks: taskTracker.toSave(),
+      equipmentDropPity: dropResult.pity,
     });
     if (latestDropName !== null) {
       this.battleScreen?.showEquipmentDrop(latestDropName);

@@ -2,7 +2,7 @@ import { HERO_CONFIG, MAIN_HERO_ID } from '../config/HeroConfig';
 import { SKILL_CONFIG } from '../config/SkillConfig';
 import { EquipmentRarity, EquipmentSlot } from '../config/EquipmentConfig';
 
-export const SAVE_SCHEMA_VERSION = 6;
+export const SAVE_SCHEMA_VERSION = 7;
 
 export interface SaveData {
   readonly schemaVersion: number;
@@ -16,6 +16,7 @@ export interface SaveData {
   readonly skills: SkillSave;
   readonly equipment: EquipmentCollectionSave;
   readonly tasks: TaskSave;
+  readonly equipmentDropPity: EquipmentDropPitySave;
   readonly claims: Record<string, boolean>;
 }
 
@@ -71,6 +72,11 @@ export interface TaskSave {
   readonly achievementClaimed: Record<string, boolean>;
 }
 
+export interface EquipmentDropPitySave {
+  readonly normalMisses: number;
+  readonly bossesSinceMythic: number;
+}
+
 export function createDefaultSaveData(now: number): SaveData {
   return {
     schemaVersion: SAVE_SCHEMA_VERSION,
@@ -107,6 +113,10 @@ export function createDefaultSaveData(now: number): SaveData {
       dailyClaimed: {},
       achievementProgress: {},
       achievementClaimed: {},
+    },
+    equipmentDropPity: {
+      normalMisses: 0,
+      bossesSinceMythic: 0,
     },
     claims: {},
   };

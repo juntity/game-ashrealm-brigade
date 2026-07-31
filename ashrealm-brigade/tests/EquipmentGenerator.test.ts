@@ -58,4 +58,28 @@ describe('EquipmentGenerator', () => {
     expect(regular.rarity).toBe('uncommon');
     expect(['rare', 'epic']).toContain(boss.rarity);
   });
+  it('honors boss minimum rarity and an explicit mythic roll', () => {
+    const minimum = new EquipmentGenerator(
+      () => 0,
+      () => 'minimum',
+    ).generate({
+      stage: 100,
+      isBoss: true,
+      minimumRarity: 'legendary',
+      mythicChance: 0,
+    });
+    const mythic = new EquipmentGenerator(
+      () => 0,
+      () => 'mythic',
+    ).generate({
+      stage: 100,
+      isBoss: true,
+      minimumRarity: 'legendary',
+      mythicChance: 1,
+    });
+
+    expect(minimum.rarity).toBe('legendary');
+    expect(mythic.rarity).toBe('mythic');
+    expect(mythic.protected).toBe(true);
+  });
 });

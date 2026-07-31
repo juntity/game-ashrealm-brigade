@@ -3,6 +3,7 @@ import { HERO_CONFIG, MAIN_HERO_ID } from '../config/HeroConfig';
 import { MAX_ACTIVE_SKILL_SLOTS, SKILL_CONFIG } from '../config/SkillConfig';
 import { EQUIPMENT_CONFIG, EquipmentSlot } from '../config/EquipmentConfig';
 import { TASK_CONFIGS, TaskCategory } from '../config/TaskConfig';
+import { EQUIPMENT_DROP_CONFIG } from '../config/EquipmentDropConfig';
 import { createDefaultSaveData, SAVE_SCHEMA_VERSION, SaveData } from './SaveData';
 import { SaveMigrator } from './SaveMigrator';
 
@@ -292,6 +293,12 @@ export class SaveService {
       this.hasValidTaskClaims(data.tasks.dailyClaimed, 'daily') &&
       this.hasValidTaskProgress(data.tasks.achievementProgress, 'achievement') &&
       this.hasValidTaskClaims(data.tasks.achievementClaimed, 'achievement') &&
+      typeof data.equipmentDropPity === 'object' &&
+      data.equipmentDropPity !== null &&
+      this.isNonNegativeInteger(data.equipmentDropPity.normalMisses) &&
+      data.equipmentDropPity.normalMisses <= EQUIPMENT_DROP_CONFIG.normalPityMisses &&
+      this.isNonNegativeInteger(data.equipmentDropPity.bossesSinceMythic) &&
+      data.equipmentDropPity.bossesSinceMythic < EQUIPMENT_DROP_CONFIG.bossMythicHardPity &&
       typeof data.claims === 'object' &&
       data.claims !== null &&
       !Array.isArray(data.claims) &&

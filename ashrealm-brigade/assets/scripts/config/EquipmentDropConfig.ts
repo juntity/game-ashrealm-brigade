@@ -10,6 +10,18 @@ export interface EquipmentDropConfig {
   readonly rarityWeights: readonly EquipmentRarityWeight[];
   readonly bossHighRarityWeightMultiplier: number;
   readonly equipmentLevelStageInterval: number;
+  readonly normalDropChance: number;
+  readonly normalPityMisses: number;
+  readonly bossMythicSoftPityStart: number;
+  readonly bossMythicSoftPityStep: number;
+  readonly bossMythicHardPity: number;
+  readonly bossTiers: readonly BossDropTier[];
+}
+
+export interface BossDropTier {
+  readonly minimumStage: number;
+  readonly minimumRarity: EquipmentRarity;
+  readonly mythicChance: number;
 }
 
 export const EQUIPMENT_DROP_CONFIG: Readonly<EquipmentDropConfig> = {
@@ -23,4 +35,17 @@ export const EQUIPMENT_DROP_CONFIG: Readonly<EquipmentDropConfig> = {
   ],
   bossHighRarityWeightMultiplier: 2,
   equipmentLevelStageInterval: 5,
+  normalDropChance: 0.2,
+  normalPityMisses: 5,
+  bossMythicSoftPityStart: 70,
+  bossMythicSoftPityStep: 0.02,
+  bossMythicHardPity: 100,
+  bossTiers: [
+    { minimumStage: 10, minimumRarity: 'rare', mythicChance: 0 },
+    { minimumStage: 30, minimumRarity: 'epic', mythicChance: 0.001 },
+    { minimumStage: 60, minimumRarity: 'epic', mythicChance: 0.003 },
+    { minimumStage: 100, minimumRarity: 'legendary', mythicChance: 0.005 },
+    { minimumStage: 200, minimumRarity: 'legendary', mythicChance: 0.008 },
+    { minimumStage: 500, minimumRarity: 'legendary', mythicChance: 0.012 },
+  ],
 };
