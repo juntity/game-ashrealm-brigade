@@ -1,5 +1,5 @@
 import { Button, Color, Graphics, Label, Layers, Node, UITransform } from 'cc';
-import { BattleModel, BattleSnapshot } from '../modules/battle/BattleModel';
+import { BattleModel, BattleProgress, BattleSnapshot } from '../modules/battle/BattleModel';
 
 const WIDTH = 750;
 const HEIGHT = 1334;
@@ -7,7 +7,9 @@ const HEIGHT = 1334;
 export class BattleScreen {
   public readonly node = new Node('BattleScreen');
 
-  private readonly model = new BattleModel();
+  private readonly model: BattleModel;
+  private readonly onProgressChanged: (progress: BattleProgress) => void;
+  private lastPersistedRevision = 0;
   private readonly stageLabel: Label;
   private readonly goldLabel: Label;
   private readonly hpLabel: Label;
@@ -19,7 +21,13 @@ export class BattleScreen {
   private readonly upgradeButton: Node;
   private readonly retryButton: Node;
 
-  public constructor(parent: Node) {
+  public constructor(
+    parent: Node,
+    initialProgress: BattleProgress,
+    onProgressChanged: (progress: BattleProgress) => void,
+  ) {
+    this.model = new BattleModel(initialProgress);
+    this.onProgressChanged = onProgressChanged;
     this.node.layer = Layers.Enum.UI_2D;
     this.node.addComponent(UITransform).setContentSize(WIDTH, HEIGHT);
     parent.addChild(this.node);
@@ -50,6 +58,7 @@ export class BattleScreen {
   public update(deltaTime: number): void {
     this.model.tick(deltaTime);
     this.render(this.model.getSnapshot());
+    this.persistIfChanged();
   }
 
   public destroy(): void {
@@ -177,15 +186,27 @@ export class BattleScreen {
   private onMonsterClicked(): void {
     this.model.clickAttack();
     this.render(this.model.getSnapshot());
+    this.persistIfChanged();
   }
 
   private onUpgradeClicked(): void {
     this.model.upgradeHero();
     this.render(this.model.getSnapshot());
+    this.persistIfChanged();
   }
 
   private onRetryClicked(): void {
     this.model.retryBoss();
     this.render(this.model.getSnapshot());
+  }
+
+  private persistIfChanged(): void {
+    const revision = this.model.getProgressRevision();
+    if (revision === this.lastPersistedRevision) {
+      return;
+    }
+
+    this.lastPersistedRevision = revision;
+    this.onProgressChanged(this.model.exportProgress());
   }
 }

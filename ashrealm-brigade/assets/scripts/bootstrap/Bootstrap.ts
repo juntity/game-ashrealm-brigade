@@ -11,6 +11,10 @@ import {
   Vec3,
 } from 'cc';
 import { BattleScreen } from '../screens/BattleScreen';
+import { BattleProgress } from '../modules/battle/BattleModel';
+import { WebPlatformAdapter } from '../platform/PlatformAdapter';
+import { SaveData } from '../save/SaveData';
+import { SaveService } from '../save/SaveService';
 
 const { ccclass } = _decorator;
 
@@ -20,8 +24,12 @@ const DESIGN_HEIGHT = 1334;
 @ccclass('Bootstrap')
 export class Bootstrap extends Component {
   private battleScreen: BattleScreen | null = null;
+  private readonly platform = new WebPlatformAdapter();
+  private readonly saveService = new SaveService(this.platform.storage, () => this.platform.now());
+  private saveData: SaveData | null = null;
 
   protected start(): void {
+    this.saveData = this.saveService.load();
     this.buildLaunchScreen();
   }
 
@@ -104,8 +112,17 @@ export class Bootstrap extends Component {
   }
 
   private onStartGame(): void {
+    const saveData = this.requireSaveData();
     this.node.removeAllChildren();
-    this.battleScreen = new BattleScreen(this.node);
+    this.battleScreen = new BattleScreen(
+      this.node,
+      {
+        stage: saveData.progress.stage,
+        gold: saveData.player.gold,
+        heroLevel: saveData.heroes[0]?.level ?? 1,
+      },
+      (progress) => this.saveProgress(progress),
+    );
   }
 
   protected update(deltaTime: number): void {
@@ -117,5 +134,40 @@ export class Bootstrap extends Component {
     buttonNode?.off(Button.EventType.CLICK, this.onStartGame, this);
     this.battleScreen?.destroy();
     this.battleScreen = null;
+  }
+
+  private saveProgress(progress: BattleProgress): void {
+    const current = this.requireSaveData();
+    const mainHero = current.heroes[0] ?? {
+      heroId: 'hero_main',
+      level: 1,
+      isDeployed: true,
+    };
+
+    this.saveData = this.saveService.save({
+      ...current,
+      player: {
+        ...current.player,
+        gold: progress.gold,
+      },
+      progress: {
+        ...current.progress,
+        stage: progress.stage,
+      },
+      heroes: [
+        {
+          ...mainHero,
+          level: progress.heroLevel,
+        },
+        ...current.heroes.slice(1),
+      ],
+    });
+  }
+
+  private requireSaveData(): SaveData {
+    if (this.saveData === null) {
+      throw new Error('SaveData has not been loaded.');
+    }
+    return this.saveData;
   }
 }

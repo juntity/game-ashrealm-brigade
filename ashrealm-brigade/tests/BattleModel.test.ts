@@ -86,9 +86,43 @@ describe('BattleModel', () => {
     }
 
     expect(model.getSnapshot()).toMatchObject({
-      stage: 10,
+      stage: 11,
       state: 'chapter-complete',
       enemyKind: 'boss',
     });
+    expect(model.exportProgress().stage).toBe(11);
+  });
+
+  it('restores persisted stage, gold and hero level', () => {
+    const model = new BattleModel({
+      stage: 10,
+      gold: 88,
+      heroLevel: 4,
+    });
+
+    expect(model.getSnapshot()).toMatchObject({
+      stage: 10,
+      gold: 88,
+      heroLevel: 4,
+      heroDamage: 9,
+      enemyKind: 'boss',
+      monsterHp: 600,
+      bossSecondsRemaining: 30,
+    });
+    expect(model.exportProgress()).toEqual({
+      stage: 10,
+      gold: 88,
+      heroLevel: 4,
+    });
+  });
+
+  it('increments the progress revision only for persistent changes', () => {
+    const model = new BattleModel();
+
+    model.clickAttack();
+    expect(model.getProgressRevision()).toBe(0);
+
+    clickUntilStage(model, 2);
+    expect(model.getProgressRevision()).toBe(1);
   });
 });

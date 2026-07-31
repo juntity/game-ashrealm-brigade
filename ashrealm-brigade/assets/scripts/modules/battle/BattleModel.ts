@@ -3,6 +3,12 @@ import { DamageCalculator } from './DamageCalculator';
 export type BattleState = 'fighting' | 'failed' | 'chapter-complete';
 export type EnemyKind = 'normal' | 'boss';
 
+export interface BattleProgress {
+  readonly stage: number;
+  readonly gold: number;
+  readonly heroLevel: number;
+}
+
 export interface BattleSnapshot {
   readonly stage: number;
   readonly state: BattleState;
@@ -18,16 +24,28 @@ export interface BattleSnapshot {
 
 export class BattleModel {
   private readonly damageCalculator = new DamageCalculator();
-  private stage = 1;
-  private monsterMaxHp = 30;
-  private monsterHp = this.monsterMaxHp;
-  private gold = 0;
-  private heroLevel = 1;
-  private heroDamage = 3;
+  private stage: number;
+  private monsterMaxHp: number;
+  private monsterHp: number;
+  private gold: number;
+  private heroLevel: number;
+  private heroDamage: number;
   private autoAttackElapsed = 0;
   private state: BattleState = 'fighting';
-  private enemyKind: EnemyKind = 'normal';
-  private bossSecondsRemaining: number | null = null;
+  private enemyKind: EnemyKind;
+  private bossSecondsRemaining: number | null;
+  private progressRevision = 0;
+
+  public constructor(progress?: Partial<BattleProgress>) {
+    this.stage = this.toPositiveInteger(progress?.stage, 1);
+    this.gold = this.toNonNegativeInteger(progress?.gold, 0);
+    this.heroLevel = this.toPositiveInteger(progress?.heroLevel, 1);
+    this.heroDamage = this.getHeroDamage(this.heroLevel);
+    this.enemyKind = this.stage % 10 === 0 ? 'boss' : 'normal';
+    this.monsterMaxHp = this.getMonsterMaxHp(this.stage, this.enemyKind);
+    this.monsterHp = this.monsterMaxHp;
+    this.bossSecondsRemaining = this.enemyKind === 'boss' ? 30 : null;
+  }
 
   public tick(deltaTime: number): void {
     if (this.state !== 'fighting') {
@@ -70,7 +88,8 @@ export class BattleModel {
 
     this.gold -= cost;
     this.heroLevel += 1;
-    this.heroDamage = 3 + (this.heroLevel - 1) * 2;
+    this.heroDamage = this.getHeroDamage(this.heroLevel);
+    this.markProgressChanged();
     return true;
   }
 
@@ -101,6 +120,18 @@ export class BattleModel {
     return true;
   }
 
+  public exportProgress(): BattleProgress {
+    return {
+      stage: this.stage,
+      gold: this.gold,
+      heroLevel: this.heroLevel,
+    };
+  }
+
+  public getProgressRevision(): number {
+    return this.progressRevision;
+  }
+
   private damageMonster(damage: number): void {
     this.monsterHp = Math.max(0, this.monsterHp - damage);
     if (this.monsterHp > 0) {
@@ -109,21 +140,43 @@ export class BattleModel {
 
     if (this.enemyKind === 'boss') {
       this.gold += 100;
+      this.stage += 1;
       this.state = 'chapter-complete';
       this.bossSecondsRemaining = null;
+      this.markProgressChanged();
       return;
     }
 
     this.gold += 5 + Math.floor(this.stage * 1.5);
     this.stage += 1;
-    this.enemyKind = this.stage === 10 ? 'boss' : 'normal';
-    this.monsterMaxHp =
-      this.enemyKind === 'boss' ? 600 : Math.floor(30 * Math.pow(1.16, this.stage - 1));
+    this.enemyKind = this.stage % 10 === 0 ? 'boss' : 'normal';
+    this.monsterMaxHp = this.getMonsterMaxHp(this.stage, this.enemyKind);
     this.monsterHp = this.monsterMaxHp;
     this.bossSecondsRemaining = this.enemyKind === 'boss' ? 30 : null;
+    this.markProgressChanged();
   }
 
   private getUpgradeCost(): number {
     return Math.floor(10 * Math.pow(1.35, this.heroLevel - 1));
+  }
+
+  private getHeroDamage(level: number): number {
+    return 3 + (level - 1) * 2;
+  }
+
+  private getMonsterMaxHp(stage: number, enemyKind: EnemyKind): number {
+    return enemyKind === 'boss' ? 600 : Math.floor(30 * Math.pow(1.16, stage - 1));
+  }
+
+  private markProgressChanged(): void {
+    this.progressRevision += 1;
+  }
+
+  private toPositiveInteger(value: number | undefined, fallback: number): number {
+    return Number.isInteger(value) && Number(value) > 0 ? Number(value) : fallback;
+  }
+
+  private toNonNegativeInteger(value: number | undefined, fallback: number): number {
+    return Number.isInteger(value) && Number(value) >= 0 ? Number(value) : fallback;
   }
 }
