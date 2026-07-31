@@ -100,6 +100,11 @@ export class BattleScreen {
     }
   }
 
+  public showEquipmentDrop(name: string): void {
+    this.offlineRewardLabel.string = `获得装备：${name}（可在背包中查看）`;
+    this.offlineRewardLabel.color = new Color(242, 207, 128, 255);
+  }
+
   public pause(): boolean {
     const changed = this.model.pause();
     if (changed) {

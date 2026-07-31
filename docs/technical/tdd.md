@@ -50,6 +50,8 @@ UI/表现层 → 应用服务层 → 领域逻辑层
 
 模块之间通过接口、命令或领域事件通信。禁止从一个 UI 组件直接修改另一个模块的数据。
 
+当前灰盒由 `Bootstrap` 统一管理战斗、装备、背包导航。`StageEquipmentDropper` 根据存档关卡与最新关卡之间的差值，为每个已通关关卡生成一次装备掉落；`EquipmentManagementScreen` 以 `equipment` / `bag` 两种模式渲染装备槽、列表和操作。切换页面时从最新存档重建页面，避免金币、背包或穿戴状态不同步。
+
 ## 4. 核心状态机
 
 战斗状态：`Loading → Fighting → MonsterDead → Spawning`；Boss 关使用 `BossIntro → Fighting → Victory | Failed → Settlement`。状态切换必须集中处理，避免动画回调决定业务结果。

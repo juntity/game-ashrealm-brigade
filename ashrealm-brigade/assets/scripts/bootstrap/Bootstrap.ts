@@ -11,6 +11,7 @@ import {
   Vec3,
 } from 'cc';
 import { BattleScreen } from '../screens/BattleScreen';
+import { EquipmentManagementScreen, EquipmentPageMode } from '../screens/EquipmentManagementScreen';
 import { BattleProgress } from '../modules/battle/BattleModel';
 import { OfflineReward, OfflineRewardCalculator } from '../modules/offline/OfflineRewardCalculator';
 import { EconomyCalculator } from '../modules/economy/EconomyCalculator';
@@ -20,17 +21,22 @@ import { CocosPlatformAdapter } from '../platform/CocosPlatformAdapter';
 import { SaveData } from '../save/SaveData';
 import { SaveDiagnostics, SaveService, SaveSlotDiagnostic } from '../save/SaveService';
 import { ScreenAdapter } from '../ui/ScreenAdapter';
+import { EQUIPMENT_CONFIG } from '../config/EquipmentConfig';
+import { StageEquipmentDropper } from '../modules/equip/StageEquipmentDropper';
 
 const { ccclass } = _decorator;
 
 @ccclass('Bootstrap')
 export class Bootstrap extends Component {
   private battleScreen: BattleScreen | null = null;
+  private equipmentScreen: EquipmentManagementScreen | null = null;
+  private navigationNode: Node | null = null;
   private readonly platform = new CocosPlatformAdapter();
   private readonly saveService = new SaveService(this.platform.storage, () => this.platform.now());
   private readonly offlineRewardCalculator = new OfflineRewardCalculator();
   private readonly economyCalculator = new EconomyCalculator();
   private readonly screenAdapter = new ScreenAdapter();
+  private readonly stageEquipmentDropper = new StageEquipmentDropper();
   private contentRoot: Node | null = null;
   private saveData: SaveData | null = null;
   private offlineReward: OfflineReward = {
@@ -197,21 +203,38 @@ export class Bootstrap extends Component {
   }
 
   private onStartGame(): void {
+    this.showGamePage('battle');
+  }
+
+  private showGamePage(page: 'battle' | EquipmentPageMode): void {
     const saveData = this.requireSaveData();
+    this.battleScreen?.destroy();
+    this.battleScreen = null;
+    this.equipmentScreen?.destroy();
+    this.equipmentScreen = null;
+    this.navigationNode?.destroy();
+    this.navigationNode = null;
     this.node.removeAllChildren();
     this.contentRoot = null;
-    this.battleScreen = new BattleScreen(
-      this.node,
-      {
-        stage: saveData.progress.stage,
-        highestStage: saveData.progress.highestStage,
-        gold: saveData.player.gold,
-        heroLevel: saveData.heroes[0]?.level ?? 1,
-        heroes: saveData.heroes,
-        equippedSkillIds: saveData.skills.equippedSkillIds,
-      },
-      (progress) => this.saveProgress(progress),
-    );
+    if (page === 'battle') {
+      this.battleScreen = new BattleScreen(
+        this.node,
+        {
+          stage: saveData.progress.stage,
+          highestStage: saveData.progress.highestStage,
+          gold: saveData.player.gold,
+          heroLevel: saveData.heroes[0]?.level ?? 1,
+          heroes: saveData.heroes,
+          equippedSkillIds: saveData.skills.equippedSkillIds,
+        },
+        (progress) => this.saveProgress(progress),
+      );
+    } else {
+      this.equipmentScreen = new EquipmentManagementScreen(this.node, page, saveData, (next) =>
+        this.saveManagementData(next),
+      );
+    }
+    this.buildNavigation(page);
   }
 
   private onInspectSave(): void {
@@ -255,6 +278,10 @@ export class Bootstrap extends Component {
     buttonNode?.off(Button.EventType.CLICK, this.onStartGame, this);
     this.battleScreen?.destroy();
     this.battleScreen = null;
+    this.equipmentScreen?.destroy();
+    this.equipmentScreen = null;
+    this.navigationNode?.destroy();
+    this.navigationNode = null;
     this.removeHideListener?.();
     this.removeShowListener?.();
     this.removeHideListener = null;
@@ -263,6 +290,17 @@ export class Bootstrap extends Component {
 
   private saveProgress(progress: BattleProgress): void {
     const current = this.requireSaveData();
+    const dropResult = this.stageEquipmentDropper.collect(
+      current.equipment,
+      current.progress.stage,
+      progress.stage,
+    );
+    const latestDrop = dropResult.drops[dropResult.drops.length - 1];
+    const latestDropName =
+      latestDrop === undefined
+        ? null
+        : (EQUIPMENT_CONFIG.templates.find((template) => template.id === latestDrop.templateId)
+            ?.name ?? '未知装备');
     this.saveData = this.saveService.save({
       ...current,
       player: {
@@ -278,7 +316,57 @@ export class Bootstrap extends Component {
       skills: {
         equippedSkillIds: [...progress.equippedSkillIds],
       },
+      equipment: dropResult.equipment,
     });
+    if (latestDropName !== null) {
+      this.battleScreen?.showEquipmentDrop(latestDropName);
+    }
+  }
+
+  private saveManagementData(next: SaveData): SaveData {
+    this.saveData = this.saveService.save(next);
+    return this.saveData;
+  }
+
+  private buildNavigation(activePage: 'battle' | EquipmentPageMode): void {
+    const navigation = this.createUiNode('GameNavigation', 750, 92);
+    navigation.setPosition(0, -620, 0);
+    const background = navigation.addComponent(Graphics);
+    background.fillColor = new Color(29, 35, 47, 250);
+    background.rect(-375, -46, 750, 92);
+    background.fill();
+    const pages: ReadonlyArray<{
+      id: 'battle' | EquipmentPageMode;
+      label: string;
+      x: number;
+    }> = [
+      { id: 'battle', label: '战斗', x: -250 },
+      { id: 'equipment', label: '装备', x: 0 },
+      { id: 'bag', label: '背包', x: 250 },
+    ];
+    for (const page of pages) {
+      const buttonNode = this.createUiNode(`Nav_${page.id}`, 230, 70);
+      buttonNode.setPosition(page.x, 0);
+      const graphics = buttonNode.addComponent(Graphics);
+      graphics.fillColor =
+        page.id === activePage ? new Color(184, 133, 54, 255) : new Color(50, 58, 72, 255);
+      graphics.roundRect(-110, -30, 220, 60, 10);
+      graphics.fill();
+      buttonNode.addComponent(Button).transition = Button.Transition.SCALE;
+      buttonNode.on(Button.EventType.CLICK, () => this.showGamePage(page.id), this);
+      const labelNode = this.createUiNode(`NavLabel_${page.id}`, 210, 55);
+      const label = labelNode.addComponent(Label);
+      label.string = page.label;
+      label.fontSize = 24;
+      label.lineHeight = 30;
+      label.color = new Color(232, 232, 226, 255);
+      label.horizontalAlign = Label.HorizontalAlign.CENTER;
+      label.verticalAlign = Label.VerticalAlign.CENTER;
+      buttonNode.addChild(labelNode);
+      navigation.addChild(buttonNode);
+    }
+    this.node.addChild(navigation);
+    this.navigationNode = navigation;
   }
 
   private requireSaveData(): SaveData {
