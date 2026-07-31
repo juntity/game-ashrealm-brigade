@@ -18,11 +18,9 @@ import { GAME_BALANCE } from '../config/GameBalanceConfig';
 import { CocosPlatformAdapter } from '../platform/CocosPlatformAdapter';
 import { SaveData } from '../save/SaveData';
 import { SaveDiagnostics, SaveService, SaveSlotDiagnostic } from '../save/SaveService';
+import { ScreenAdapter } from '../ui/ScreenAdapter';
 
 const { ccclass } = _decorator;
-
-const DESIGN_WIDTH = 750;
-const DESIGN_HEIGHT = 1334;
 
 @ccclass('Bootstrap')
 export class Bootstrap extends Component {
@@ -31,6 +29,8 @@ export class Bootstrap extends Component {
   private readonly saveService = new SaveService(this.platform.storage, () => this.platform.now());
   private readonly offlineRewardCalculator = new OfflineRewardCalculator();
   private readonly economyCalculator = new EconomyCalculator();
+  private readonly screenAdapter = new ScreenAdapter();
+  private contentRoot: Node | null = null;
   private saveData: SaveData | null = null;
   private offlineReward: OfflineReward = {
     elapsedSeconds: 0,
@@ -44,6 +44,7 @@ export class Bootstrap extends Component {
   private battlePausedByLifecycle = false;
 
   protected start(): void {
+    this.screenAdapter.configureView();
     this.saveData = this.saveService.load();
     this.offlineReward = this.applyOfflineReward();
     this.removeHideListener = this.platform.onHide(() => this.onAppHide());
@@ -55,6 +56,7 @@ export class Bootstrap extends Component {
     this.node.removeAllChildren();
 
     this.createBackground();
+    this.contentRoot = this.screenAdapter.createSafeContent(this.node, 'LaunchSafeContent');
     this.createLabel('烬境旅团', 64, new Color(242, 207, 128, 255), new Vec3(0, 260, 0));
     this.createLabel('ASHREALM BRIGADE', 22, new Color(165, 174, 190, 255), new Vec3(0, 198, 0));
     this.createLabel('集结英雄，穿越烬境', 28, new Color(220, 223, 229, 255), new Vec3(0, 95, 0));
@@ -88,11 +90,17 @@ export class Bootstrap extends Component {
   }
 
   private createBackground(): void {
-    const background = this.createUiNode('Background', DESIGN_WIDTH, DESIGN_HEIGHT);
+    const visibleSize = this.screenAdapter.getVisibleSize();
+    const background = this.createUiNode('Background', visibleSize.width, visibleSize.height);
     const graphics = background.addComponent(Graphics);
 
     graphics.fillColor = new Color(18, 22, 31, 255);
-    graphics.rect(-DESIGN_WIDTH / 2, -DESIGN_HEIGHT / 2, DESIGN_WIDTH, DESIGN_HEIGHT);
+    graphics.rect(
+      -visibleSize.width / 2,
+      -visibleSize.height / 2,
+      visibleSize.width,
+      visibleSize.height,
+    );
     graphics.fill();
 
     graphics.fillColor = new Color(35, 43, 58, 255);
@@ -129,16 +137,16 @@ export class Bootstrap extends Component {
     label.verticalAlign = Label.VerticalAlign.CENTER;
 
     buttonNode.addChild(labelNode);
-    this.node.addChild(buttonNode);
+    this.requireContentRoot().addChild(buttonNode);
   }
 
   private createDeveloperButton(name: string, text: string, x: number, callback: () => void): void {
-    const buttonNode = this.createUiNode(name, 250, 72);
+    const buttonNode = this.createUiNode(name, 250, 80);
     buttonNode.setPosition(x, -275, 0);
 
     const graphics = buttonNode.addComponent(Graphics);
     graphics.fillColor = new Color(50, 58, 72, 255);
-    graphics.roundRect(-125, -36, 250, 72, 12);
+    graphics.roundRect(-125, -40, 250, 80, 12);
     graphics.fill();
 
     const button = buttonNode.addComponent(Button);
@@ -155,7 +163,7 @@ export class Bootstrap extends Component {
     label.horizontalAlign = Label.HorizontalAlign.CENTER;
     label.verticalAlign = Label.VerticalAlign.CENTER;
     buttonNode.addChild(labelNode);
-    this.node.addChild(buttonNode);
+    this.requireContentRoot().addChild(buttonNode);
   }
 
   private createLabel(text: string, fontSize: number, color: Color, position: Vec3): void {
@@ -170,7 +178,7 @@ export class Bootstrap extends Component {
     label.horizontalAlign = Label.HorizontalAlign.CENTER;
     label.verticalAlign = Label.VerticalAlign.CENTER;
 
-    this.node.addChild(labelNode);
+    this.requireContentRoot().addChild(labelNode);
   }
 
   private createUiNode(name: string, width: number, height: number): Node {
@@ -180,9 +188,17 @@ export class Bootstrap extends Component {
     return node;
   }
 
+  private requireContentRoot(): Node {
+    if (this.contentRoot === null) {
+      throw new Error('Safe content root has not been created.');
+    }
+    return this.contentRoot;
+  }
+
   private onStartGame(): void {
     const saveData = this.requireSaveData();
     this.node.removeAllChildren();
+    this.contentRoot = null;
     this.battleScreen = new BattleScreen(
       this.node,
       {

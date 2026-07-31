@@ -1,14 +1,14 @@
 import { Button, Color, Graphics, Label, Layers, Node, UITransform } from 'cc';
 import { BattleModel, BattleProgress, BattleSnapshot } from '../modules/battle/BattleModel';
 import { OfflineReward } from '../modules/offline/OfflineRewardCalculator';
-
-const WIDTH = 750;
-const HEIGHT = 1334;
+import { DESIGN_HEIGHT, DESIGN_WIDTH, ScreenAdapter } from '../ui/ScreenAdapter';
 
 export class BattleScreen {
   public readonly node = new Node('BattleScreen');
 
   private readonly model: BattleModel;
+  private readonly screenAdapter = new ScreenAdapter();
+  private readonly contentRoot: Node;
   private readonly onProgressChanged: (progress: BattleProgress) => void;
   private lastPersistedRevision = 0;
   private readonly stageLabel: Label;
@@ -33,10 +33,11 @@ export class BattleScreen {
     this.model = new BattleModel(initialProgress);
     this.onProgressChanged = onProgressChanged;
     this.node.layer = Layers.Enum.UI_2D;
-    this.node.addComponent(UITransform).setContentSize(WIDTH, HEIGHT);
+    this.node.addComponent(UITransform).setContentSize(DESIGN_WIDTH, DESIGN_HEIGHT);
     parent.addChild(this.node);
 
     this.createBackground();
+    this.contentRoot = this.screenAdapter.createSafeContent(this.node, 'BattleSafeContent');
     this.stageLabel = this.createLabel('StageLabel', 30, 0, 565);
     this.pauseButton = this.createSmallButton('PauseButton', 285, 570);
     this.pauseLabel = this.createLabelNode(this.pauseButton, '暂停', 22);
@@ -103,10 +104,16 @@ export class BattleScreen {
   }
 
   private createBackground(): void {
-    const background = this.createNode('Background', WIDTH, HEIGHT);
+    const visibleSize = this.screenAdapter.getVisibleSize();
+    const background = this.createNode('Background', visibleSize.width, visibleSize.height);
     const graphics = background.addComponent(Graphics);
     graphics.fillColor = new Color(17, 21, 30, 255);
-    graphics.rect(-WIDTH / 2, -HEIGHT / 2, WIDTH, HEIGHT);
+    graphics.rect(
+      -visibleSize.width / 2,
+      -visibleSize.height / 2,
+      visibleSize.width,
+      visibleSize.height,
+    );
     graphics.fill();
     this.node.addChild(background);
   }
@@ -127,7 +134,7 @@ export class BattleScreen {
     const button = monster.addComponent(Button);
     button.transition = Button.Transition.SCALE;
     button.zoomScale = 0.94;
-    this.node.addChild(monster);
+    this.contentRoot.addChild(monster);
     return monster;
   }
 
@@ -135,7 +142,7 @@ export class BattleScreen {
     const bar = this.createNode('HpBar', 560, 38);
     bar.setPosition(0, 115);
     const graphics = bar.addComponent(Graphics);
-    this.node.addChild(bar);
+    this.contentRoot.addChild(bar);
     return graphics;
   }
 
@@ -151,23 +158,23 @@ export class BattleScreen {
     const button = node.addComponent(Button);
     button.transition = Button.Transition.SCALE;
     button.zoomScale = 0.96;
-    this.node.addChild(node);
+    this.contentRoot.addChild(node);
     return node;
   }
 
   private createSmallButton(name: string, x: number, y: number): Node {
-    const node = this.createNode(name, 120, 58);
+    const node = this.createNode(name, 120, 80);
     node.setPosition(x, y);
 
     const graphics = node.addComponent(Graphics);
     graphics.fillColor = new Color(50, 58, 72, 255);
-    graphics.roundRect(-60, -29, 120, 58, 10);
+    graphics.roundRect(-60, -40, 120, 80, 10);
     graphics.fill();
 
     const button = node.addComponent(Button);
     button.transition = Button.Transition.SCALE;
     button.zoomScale = 0.96;
-    this.node.addChild(node);
+    this.contentRoot.addChild(node);
     return node;
   }
 
@@ -180,7 +187,7 @@ export class BattleScreen {
     label.color = new Color(232, 232, 226, 255);
     label.horizontalAlign = Label.HorizontalAlign.CENTER;
     label.verticalAlign = Label.VerticalAlign.CENTER;
-    this.node.addChild(node);
+    this.contentRoot.addChild(node);
     return label;
   }
 
