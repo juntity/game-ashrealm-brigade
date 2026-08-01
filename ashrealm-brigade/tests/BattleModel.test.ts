@@ -129,8 +129,8 @@ describe('BattleModel', () => {
       stage: 11,
       state: 'fighting',
       enemyKind: 'normal',
-      monsterHp: 132,
-      monsterMaxHp: 132,
+      monsterHp: 111,
+      monsterMaxHp: 111,
       bossSecondsRemaining: null,
     });
     expect(model.exportProgress().stage).toBe(11);

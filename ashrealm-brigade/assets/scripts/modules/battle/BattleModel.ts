@@ -99,7 +99,7 @@ export class BattleModel {
     this.monsterMaxHp = this.economyCalculator.getMonsterHp(this.stage, this.enemyKind === 'boss');
     this.monsterHp = this.monsterMaxHp;
     this.bossSecondsRemaining =
-      this.enemyKind === 'boss' ? GAME_BALANCE.battle.bossDurationSeconds : null;
+      this.enemyKind === 'boss' ? this.economyCalculator.getBossDurationSeconds(this.stage) : null;
   }
 
   public tick(deltaTime: number): void {
@@ -180,7 +180,7 @@ export class BattleModel {
 
     this.state = 'fighting';
     this.monsterHp = this.monsterMaxHp;
-    this.bossSecondsRemaining = GAME_BALANCE.battle.bossDurationSeconds;
+    this.bossSecondsRemaining = this.economyCalculator.getBossDurationSeconds(this.stage);
     this.autoAttackElapsed = 0;
     return true;
   }
@@ -298,7 +298,7 @@ export class BattleModel {
     this.monsterMaxHp = this.economyCalculator.getMonsterHp(this.stage, this.enemyKind === 'boss');
     this.monsterHp = this.monsterMaxHp;
     this.bossSecondsRemaining =
-      this.enemyKind === 'boss' ? GAME_BALANCE.battle.bossDurationSeconds : null;
+      this.enemyKind === 'boss' ? this.economyCalculator.getBossDurationSeconds(this.stage) : null;
   }
 
   private getUpgradeCost(): number {

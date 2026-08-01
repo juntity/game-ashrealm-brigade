@@ -8,12 +8,12 @@ describe('EconomyCalculator', () => {
     expect(calculator.getMonsterHp(1)).toBe(30);
     expect(calculator.getMonsterHp(10)).toBe(600);
     expect(calculator.getKillGold(1)).toBe(6);
-    expect(calculator.getKillGold(10)).toBe(100);
+    expect(calculator.getKillGold(10)).toBe(110);
   });
 
   it('uses the previous normal stage when estimating boss-stage offline income', () => {
-    expect(calculator.getOfflineGoldPerMinute(9, 11)).toBe(24);
-    expect(calculator.getOfflineGoldPerMinute(10, 11)).toBe(24);
+    expect(calculator.getOfflineGoldPerMinute(9, 11)).toBe(27);
+    expect(calculator.getOfflineGoldPerMinute(10, 11)).toBe(27);
   });
 
   it('keeps level-one offline income below active income', () => {

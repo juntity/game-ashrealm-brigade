@@ -1,4 +1,9 @@
 import { GAME_BALANCE, GameBalanceConfig } from '../../config/GameBalanceConfig';
+import {
+  getStageConfig,
+  isConfiguredStage,
+  StageConfig,
+} from '../../config/StageConfig';
 
 export class EconomyCalculator {
   public constructor(private readonly config: Readonly<GameBalanceConfig> = GAME_BALANCE) {}
@@ -7,11 +12,23 @@ export class EconomyCalculator {
     return Math.max(1, Math.floor(stage)) % this.config.battle.bossInterval === 0;
   }
 
+  public getStageConfig(stage: number): StageConfig | null {
+    return getStageConfig(stage);
+  }
+
   public getMonsterHp(stage: number, isBoss = this.isBossStage(stage)): number {
-    const normalizedStage = Math.max(1, Math.floor(stage));
+    if (!isBoss && isConfiguredStage(stage)) {
+      const cfg = getStageConfig(stage);
+      if (cfg) return cfg.monsterHp;
+    }
     if (isBoss) {
+      if (isConfiguredStage(stage)) {
+        const cfg = getStageConfig(stage);
+        if (cfg) return cfg.bossHp;
+      }
       return this.config.battle.bossHp;
     }
+    const normalizedStage = Math.max(1, Math.floor(stage));
     return Math.floor(
       this.config.battle.monsterBaseHp *
         Math.pow(this.config.battle.monsterHpGrowth, normalizedStage - 1),
@@ -19,14 +36,30 @@ export class EconomyCalculator {
   }
 
   public getKillGold(stage: number, isBoss = this.isBossStage(stage)): number {
-    const normalizedStage = Math.max(1, Math.floor(stage));
+    if (!isBoss && isConfiguredStage(stage)) {
+      const cfg = getStageConfig(stage);
+      if (cfg) return cfg.monsterGold;
+    }
     if (isBoss) {
+      if (isConfiguredStage(stage)) {
+        const cfg = getStageConfig(stage);
+        if (cfg) return cfg.bossGold;
+      }
       return this.config.economy.bossGold;
     }
+    const normalizedStage = Math.max(1, Math.floor(stage));
     return (
       this.config.economy.monsterBaseGold +
       Math.floor(normalizedStage * this.config.economy.monsterStageGoldFactor)
     );
+  }
+
+  public getBossDurationSeconds(stage: number): number {
+    if (isConfiguredStage(stage)) {
+      const cfg = getStageConfig(stage);
+      if (cfg) return cfg.bossDurationSeconds;
+    }
+    return this.config.battle.bossDurationSeconds;
   }
 
   public getOfflineGoldPerMinute(
